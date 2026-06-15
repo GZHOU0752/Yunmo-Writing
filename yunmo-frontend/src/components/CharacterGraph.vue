@@ -59,7 +59,7 @@ function renderChart(data) {
     name: n.name,
     symbolSize: n.importance ? Math.max(20, n.importance * 5) : 25,
     itemStyle: { color: roleColors[n.role] || '#888' },
-    label: { show: true, fontSize: 12, color: '#1f160c' },
+    label: { show: true, fontSize: 12, color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#d4c8b8' : '#1f160c' },
   }))
 
   const edges = (data.edges || []).map(e => ({

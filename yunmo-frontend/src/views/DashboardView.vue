@@ -7,9 +7,11 @@ import WritingStatsCard from '@/components/WritingStatsCard.vue'
 import CharacterGraph from '@/components/CharacterGraph.vue'
 
 import { clearToken, useApi } from '@/composables/useApi'
+import { useTheme } from '@/composables/useTheme'
 
 const store = useNovelStore()
 const api = useApi()
+const { theme, toggle: toggleTheme } = useTheme()
 const router = useRouter()
 const showCreate = ref(false)
 const newTitle = ref('')
@@ -103,6 +105,7 @@ async function handleCreate() {
         <p class="text-caption">我的书房</p>
       </div>
       <div class="flex gap-2">
+        <a-button size="small" type="text" class="toolbar-btn" @click="toggleTheme" :title="theme === 'dark' ? '日间模式' : '墨夜模式'">{{ theme === 'dark' ? '素' : '墨' }}</a-button>
         <a-button type="primary" @click="showCreate = true">新小说</a-button>
         <a-button @click="logout">登出</a-button>
       </div>
@@ -131,26 +134,32 @@ async function handleCreate() {
     <a-spin :spinning="store.loading">
       <div
         v-if="store.novels.length > 0"
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min"
+        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-min"
       >
         <NovelCard
           v-for="(novel, idx) in store.novels"
           :key="novel.id"
           :novel="novel"
-          :class="idx === 0 && store.novels.length >= 2 ? 'md:col-span-2 lg:col-span-2' : ''"
+          :class="{
+            'md:col-span-2 md:row-span-1': idx % 5 === 0,
+            'md:col-span-2': idx % 4 === 1,
+            'card-enter': true
+          }"
           :style="{ animationDelay: idx * 60 + 'ms' }"
-          class="card-enter"
           @click="router.push(`/novels/${novel.id}/write`)"
           @detail="openDetail(novel)"
         />
       </div>
 
-      <div v-if="!store.loading && store.novels.length === 0" class="mt-20 max-w-sm mx-auto text-center">
-        <div class="font-brush text-3xl mb-6 tracking-widest" style="color:var(--yunmo-accent)">云 墨</div>
-        <p class="text-base leading-loose tracking-wider" style="color:var(--yunmo-text-caption)">
-          提笔落墨<br/>写下你的第一部作品
-        </p>
-        <div class="mt-8">
+      <div v-if="!store.loading && store.novels.length === 0" class="mt-16 grid grid-cols-1 md:grid-cols-5 gap-8 items-end">
+        <div class="md:col-span-2 text-right md:text-left md:pr-12">
+          <div class="font-brush text-5xl mb-4 tracking-widest leading-none" style="color:var(--yunmo-accent)">云墨</div>
+          <div class="w-12 h-px mb-6 ml-auto md:ml-0" style="background:var(--yunmo-accent-light)"></div>
+          <p class="text-sm leading-relaxed tracking-wide" style="color:var(--yunmo-text-secondary);writing-mode:vertical-rl;height:180px">
+            提笔落墨，写下你的第一部作品
+          </p>
+        </div>
+        <div class="md:col-span-3 md:pl-8 md:border-l" style="border-color:var(--yunmo-border)">
           <a-button type="primary" size="large" @click="showCreate = true">开始创作</a-button>
         </div>
       </div>

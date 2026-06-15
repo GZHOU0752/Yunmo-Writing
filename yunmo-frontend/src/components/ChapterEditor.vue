@@ -93,4 +93,10 @@ onBeforeUnmount(() => {
 .ProseMirror:focus {
   outline: none;
 }
+
+/* 暗色模式下强制编辑器内所有文字使用变量 */
+.ProseMirror * {
+  color: inherit !important;
+  background: transparent !important;
+}
 </style>

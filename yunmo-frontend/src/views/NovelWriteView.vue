@@ -10,19 +10,23 @@ import ReferenceMaterialList from '@/components/ReferenceMaterialList.vue'
 import WritingStatsCard from '@/components/WritingStatsCard.vue'
 import CharacterGraph from '@/components/CharacterGraph.vue'
 import SearchReplaceModal from '@/components/SearchReplaceModal.vue'
+import ImportModal from '@/components/ImportModal.vue'
 
 import { message } from 'ant-design-vue'
+import { useTheme } from '@/composables/useTheme'
 
 const route = useRoute()
 const router = useRouter()
 const store = useWriteStore()
 const api = useApi()
+const { theme, toggle: toggleTheme } = useTheme()
 const novelId = route.params.id
 
 const selectedChapterNum = ref(1)
 const leftTab = ref('chapters') // 'chapters' | 'outline' | 'relations'
 const relationGraphOpen = ref(false)
 const searchOpen = ref(false)
+const importOpen = ref(false)
 const focusInput = ref('')
 const editingTitle = ref('')
 const titleEditing = ref(false)
@@ -288,17 +292,19 @@ async function restoreVersion(version) {
         </div>
         <div class="flex-1">
           <div
-            v-for="ch in store.chapters"
+            v-for="(ch, idx) in store.chapters"
             :key="ch.chapterNumber"
             class="px-3 py-2 rounded cursor-pointer text-sm mb-0.5 flex items-center justify-between group"
             :class="selectedChapterNum === ch.chapterNumber
               ? 'bg-[var(--yunmo-accent)] text-[var(--yunmo-paper-light)]'
               : 'hover:bg-[var(--yunmo-paper-dark)]'"
+            :style="{ animationDelay: idx * 30 + 'ms' }"
+            style="animation: chapterSlideIn 0.35s cubic-bezier(0.16,1,0.3,1) both"
             @click="selectedChapterNum = ch.chapterNumber"
           >
             <span class="truncate">{{ ch.title || '第' + ch.chapterNumber + '章' }}</span>
-            <span class="text-caption text-xs ml-1 shrink-0 flex items-center gap-1">
-              {{ ch.wordCount || 0 }} 字
+            <span class="text-xs ml-1 shrink-0 flex items-center gap-1" style="opacity:0.65">
+              <span>{{ ch.wordCount || 0 }} 字</span>
               <a-popconfirm
                 v-if="store.chapters.length > 1"
                 title="确定删除该章节？"
@@ -335,6 +341,7 @@ async function restoreVersion(version) {
     <main class="flex-1 flex flex-col min-w-0">
       <header class="h-12 border-b border-[var(--yunmo-border)] flex items-center px-4 gap-3">
         <a-button size="small" type="text" class="toolbar-btn" @click="router.push('/dashboard')">← 书房</a-button>
+        <a-button size="small" type="text" class="toolbar-btn" @click="router.push(`/novels/${novelId}/read`)">阅读</a-button>
         <div class="w-px h-5" style="background:var(--yunmo-border)" />
         <!-- 可编辑章节标题 -->
         <div class="flex items-center gap-1">
@@ -358,6 +365,7 @@ async function restoreVersion(version) {
           {{ store.currentChapter.wordCount || 0 }} 字
         </a-tag>
         <div class="flex-1" />
+        <a-button size="small" type="text" class="toolbar-btn" @click="toggleTheme" :title="theme === 'dark' ? '日间模式' : '墨夜模式'">{{ theme === 'dark' ? '素' : '墨' }}</a-button>
         <span v-if="lastAutoSaved" class="text-xs" style="color:var(--yunmo-text-caption)">草稿 {{ lastAutoSaved }}</span>
         <div class="w-px h-5 mx-2" style="background:var(--yunmo-border)" />
         <a-button size="small" type="text" class="toolbar-btn" @click="handleOpenVersions">修订</a-button>
@@ -372,6 +380,7 @@ async function restoreVersion(version) {
             </a-menu>
           </template>
         </a-dropdown>
+        <a-button size="small" type="text" class="toolbar-btn" @click="importOpen = true">导入</a-button>
         <a-button size="small" type="text" class="toolbar-btn" @click="searchOpen = true">检索</a-button>
         <a-button
           type="primary"
@@ -406,6 +415,9 @@ async function restoreVersion(version) {
         @generate="generate"
       />
     </aside>
+
+    <!-- 导入外部文稿 -->
+    <ImportModal :novel-id="novelId" v-model:open="importOpen" @imported="store.fetchChapters(novelId)" />
 
     <!-- 全文搜索替换 -->
     <SearchReplaceModal :novel-id="novelId" v-model:open="searchOpen" @jump-to="(cn) => selectedChapterNum = cn" />

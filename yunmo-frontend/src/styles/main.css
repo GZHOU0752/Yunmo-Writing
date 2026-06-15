@@ -95,11 +95,14 @@ h4 { font-size: 1rem; font-weight: 600; }
   padding: 2px 6px;
   font-size: 0.8125rem;
   border-radius: 3px;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.1s ease;
 }
 .toolbar-btn:hover {
   color: var(--yunmo-accent);
   background: rgba(139, 58, 58, 0.06);
+}
+.toolbar-btn:active {
+  transform: scale(0.96);
 }
 
 /* ===== 自定义按钮 ===== */
@@ -405,4 +408,147 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card-enter { animation: none; }
+}
+
+/* ===== 章节列表交错滑入 ===== */
+@keyframes chapterSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="chapterSlideIn"] { animation: none !important; }
+}
+
+/* ============================================
+   墨夜 · 暗色模式 (Ink Night)
+   材质: 陈檀木 / 暖黄光 / 泥金点 / 深砚底
+   ============================================ */
+
+[data-theme="dark"] {
+  --yunmo-ink: #d4c8b8;              /* 暖黄白 — 暗底正文 */
+  --yunmo-paper: #1a1410;            /* 陈檀木 — 主背景 */
+  --yunmo-paper-dark: #221c16;       /* 深檀 — 更深层 */
+  --yunmo-paper-light: #252018;      /* 浅檀 — 卡片浮层 */
+  --yunmo-accent: #c9695a;           /* 朱砂暖 — 暗底提亮 */
+  --yunmo-accent-hover: #d48375;     /* 朱砂亮 — hover */
+  --yunmo-accent-light: #8b7355;     /* 老檀木 — 温润 */
+  --yunmo-border: #3a3028;           /* 竹边暗 — 边界 */
+  --yunmo-red: #c9695a;              /* 胭脂暖 */
+  --yunmo-green: #7a9a6a;            /* 竹青亮 */
+  --yunmo-gold: #c4a46c;             /* 泥金暖 */
+  --yunmo-amber: #c4a06c;            /* 琥珀暖 */
+
+  --yunmo-text-secondary: #b0a090;   /* 次级文字 */
+  --yunmo-text-caption: #8a7a6a;     /* 说明文字 */
+  --yunmo-couplet: #e8ddd0;          /* 焦墨反色 */
+
+  --ant-primary-1: #252018;
+  --ant-primary-2: #3a2a20;
+}
+
+[data-theme="dark"] body {
+  background: var(--yunmo-paper);
+  color: var(--yunmo-ink);
+}
+
+[data-theme="dark"] body::before {
+  opacity: 0.03;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(180, 160, 140, 0.04) 2px,
+      rgba(180, 160, 140, 0.04) 4px
+    );
+}
+
+[data-theme="dark"] .yunmo-card {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+[data-theme="dark"] .yunmo-card:hover {
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .toolbar-btn:hover {
+  background: rgba(201, 105, 90, 0.12);
+}
+
+[data-theme="dark"] .ant-btn-primary {
+  color: #faf6ed;
+}
+
+[data-theme="dark"] .ant-input,
+[data-theme="dark"] .ant-input-password {
+  color: var(--yunmo-ink);
+  background: var(--yunmo-paper-dark);
+}
+[data-theme="dark"] .ant-input:focus,
+[data-theme="dark"] .ant-input-password:focus,
+[data-theme="dark"] .ant-input-focused {
+  box-shadow: 0 0 0 2px rgba(201, 105, 90, 0.15);
+}
+
+[data-theme="dark"] .ant-modal-content,
+[data-theme="dark"] .ant-drawer-content,
+[data-theme="dark"] .ant-select-dropdown,
+[data-theme="dark"] .ant-popover-inner {
+  background: var(--yunmo-paper-light);
+}
+[data-theme="dark"] .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.5);
+}
+[data-theme="dark"] .ant-drawer-mask {
+  background: rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .ant-popover-arrow-content {
+  --antd-arrow-background-color: var(--yunmo-paper-light);
+}
+
+[data-theme="dark"] .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: var(--yunmo-paper-dark);
+}
+
+[data-theme="dark"] .ant-tag-blue {
+  background: rgba(201, 105, 90, 0.1);
+  border-color: rgba(201, 105, 90, 0.2);
+}
+[data-theme="dark"] .ant-tag-default {
+  background: var(--yunmo-paper-dark);
+}
+
+[data-theme="dark"] .ant-alert-info {
+  background: var(--yunmo-paper-dark);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--yunmo-paper-dark);
+}
+
+[data-theme="dark"] .yunmo-btn:disabled {
+  background: #3a3028;
+  color: #6a5a4a;
+}
+
+/* 暗色下 Ant Design 补充修正 */
+[data-theme="dark"] .ant-input::placeholder,
+[data-theme="dark"] .ant-input-password::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #6a5a4a !important;
+}
+
+[data-theme="dark"] .ant-tag {
+  color: #d4c8b8;
+}
+
+[data-theme="dark"] .ant-badge-status-text {
+  color: #b0a090 !important;
+}
+
+[data-theme="dark"] .ant-empty-description {
+  color: #8a7a6a;
+}
+
+[data-theme="dark"] .ant-select-selection-placeholder {
+  color: #6a5a4a;
 }

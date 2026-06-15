@@ -173,6 +173,111 @@ public class ImportController {
         return result;
     }
 
+    /**
+     * 导入文本到已有小说（按章节标记自动拆分）
+     */
+    @PostMapping("/to-novel/{novelId}")
+    public Mono<Map<String, Object>> importToNovel(@PathVariable String novelId,
+                                                    @RequestBody Map<String, Object> body) {
+        return Mono.<Map<String, Object>>fromCallable(() -> {
+            String text = (String) body.get("text");
+            if (text == null || text.trim().isEmpty()) {
+                Map<String, Object> empty = new LinkedHashMap<>();
+                empty.put("imported", 0);
+                return empty;
+            }
+
+            List<ParsedChapter> parsed = parseChapters(text);
+            Novel novel = novelRepo.findById(novelId).orElse(null);
+            if (novel == null) {
+                Map<String, Object> err = new LinkedHashMap<>();
+                err.put("imported", 0);
+                err.put("error", "小说不存在");
+                return err;
+            }
+
+            int maxChapterNumber = chapterRepo
+                .findByNovelIdOrderByChapterNumberAsc(novelId)
+                .stream()
+                .mapToInt(Chapter::getChapterNumber)
+                .max()
+                .orElse(0);
+
+            if (parsed.isEmpty()) {
+                Chapter ch = createChapter(novelId, maxChapterNumber + 1,
+                    "第" + (maxChapterNumber + 1) + "章", text.trim(), countChineseChars(text));
+                novel.setTotalChapters(novel.getTotalChapters() + 1);
+                novel.setWordCount(novel.getWordCount() + ch.getWordCount());
+                novelRepo.save(novel);
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("chapterNumber", ch.getChapterNumber());
+                info.put("title", ch.getTitle());
+                info.put("wordCount", ch.getWordCount());
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("imported", 1);
+                result.put("chapters", List.of(info));
+                return result;
+            }
+
+            List<Map<String, Object>> imported = new ArrayList<>();
+            int totalWords = 0;
+            for (int i = 0; i < parsed.size(); i++) {
+                var pc = parsed.get(i);
+                String chTitle = pc.title != null && !pc.title.isBlank()
+                    ? "第" + (maxChapterNumber + 1 + i) + "章 " + pc.title
+                    : "第" + (maxChapterNumber + 1 + i) + "章";
+                int wc = countChineseChars(pc.content);
+                Chapter ch = createChapter(novelId, maxChapterNumber + 1 + i, chTitle, pc.content, wc);
+                totalWords += wc;
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("chapterNumber", ch.getChapterNumber());
+                info.put("title", ch.getTitle());
+                info.put("wordCount", ch.getWordCount());
+                imported.add(info);
+            }
+
+            novel.setTotalChapters(novel.getTotalChapters() + parsed.size());
+            novel.setWordCount(novel.getWordCount() + totalWords);
+            novelRepo.save(novel);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("imported", parsed.size());
+            result.put("chapters", imported);
+            return result;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /** 预览拆分（不实际导入） */
+    @PostMapping("/to-novel/{novelId}/preview")
+    public Mono<List<Map<String, Object>>> previewImport(@PathVariable String novelId,
+                                                          @RequestBody Map<String, Object> body) {
+        return Mono.<List<Map<String, Object>>>fromCallable(() -> {
+            String text = (String) body.get("text");
+            if (text == null || text.trim().isEmpty()) return List.of();
+
+            List<ParsedChapter> parsed = parseChapters(text);
+            if (parsed.isEmpty()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("title", "全文导入");
+                m.put("wordCount", countChineseChars(text));
+                m.put("preview", text.length() > 200 ? text.substring(0, 200) + "..." : text);
+                return List.of(m);
+            }
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (ParsedChapter pc : parsed) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("title", pc.title != null && !pc.title.isBlank() ? pc.title : "未命名");
+                m.put("wordCount", countChineseChars(pc.content));
+                m.put("preview", pc.content.length() > 200
+                    ? pc.content.substring(0, 200).replace("\n", " ") + "..."
+                    : pc.content.replace("\n", " "));
+                result.add(m);
+            }
+            return result;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
     /** 解析结果 */
     private static class ParsedChapter {
         String title;

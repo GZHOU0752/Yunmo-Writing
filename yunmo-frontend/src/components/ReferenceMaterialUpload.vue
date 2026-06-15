@@ -54,7 +54,7 @@ async function handleFile(e) {
       :class="{ 'opacity-50 pointer-events-none': uploading }"
     >
       <a-spin v-if="uploading" size="small" class="mb-2 block" />
-      <div v-else class="text-2xl mb-1">📄</div>
+      <div v-else class="text-lg mb-1 font-brush" style="color:var(--yunmo-accent)">+</div>
       <p class="text-sm text-[var(--yunmo-text-secondary)]">
         {{ uploading ? '正在解析并索引素材...' : '点击上传 .txt 参考素材' }}
       </p>

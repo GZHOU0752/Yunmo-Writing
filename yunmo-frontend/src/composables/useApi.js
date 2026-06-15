@@ -126,5 +126,9 @@ export function useApi() {
       me: () => request('/auth/me'),
       logout: () => request('/auth/logout', { method: 'POST' }),
     },
+    import: {
+      preview: (novelId, text) => request(`/import/to-novel/${novelId}/preview`, { method: 'POST', body: JSON.stringify({ text }) }),
+      execute: (novelId, text) => request(`/import/to-novel/${novelId}`, { method: 'POST', body: JSON.stringify({ text }) }),
+    },
   }
 }
