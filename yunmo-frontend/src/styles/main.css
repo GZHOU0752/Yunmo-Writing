@@ -1,0 +1,408 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+
+/* ============================================
+   云墨 · 书房美学 (Study-Room Aesthetic)
+   材质来源: 宣纸 / 松烟墨 / 朱砂印 / 檀木 / 竹青 / 泥金
+   ============================================ */
+
+:root {
+  /* 纸墨基调 */
+  --yunmo-ink: #1f160c;          /* 松烟墨 — 浓墨暖黑 */
+  --yunmo-paper: #f5efe0;        /* 宣纸 — 陈年宣纸底 */
+  --yunmo-paper-dark: #ede4cf;   /* 旧纸 — 更深一层 */
+  --yunmo-paper-light: #faf6ed;  /* 新纸 — 卡片/浮层 */
+  --yunmo-accent: #8b3a3a;       /* 朱砂印 — 印章朱红 */
+  --yunmo-accent-hover: #6e2626; /* 朱砂深 — hover */
+  --yunmo-accent-light: #b8956c; /* 檀木 — 温润木色 */
+  --yunmo-border: #d4c9b5;       /* 竹边 — 竹纸边界 */
+  --yunmo-red: #b3443a;          /* 胭脂 — 危险/删除 */
+  --yunmo-green: #5a7a5a;        /* 竹青 — 成功/通过 */
+  --yunmo-gold: #b8964a;         /* 泥金 — 点缀高光 */
+  --yunmo-amber: #b68b40;        /* 琥珀 — 中等评分 */
+
+  /* 语义色 */
+  --yunmo-text-secondary: #4a3826;  /* 次级文字 */
+  --yunmo-text-caption: #5c4a34;    /* 说明文字 */
+  --yunmo-couplet: #140a02;         /* 对联浓墨 — 焦墨最深 */
+}
+
+/* ===== 基础 ===== */
+body {
+  background: var(--yunmo-paper);
+  color: var(--yunmo-ink);
+  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 宣纸肌理 ===== */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(44, 36, 22, 0.06) 2px,
+      rgba(44, 36, 22, 0.06) 4px
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { display: none; }
+}
+
+/* ===== 古风展示字体 ===== */
+.font-brush {
+  font-family: "Ma Shan Zheng", "Noto Serif SC", "Source Han Serif SC", serif;
+  font-weight: 400;
+}
+
+/* ===== 字体层级 ===== */
+h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: clamp(1.25rem, 2.5vw, 1.5rem); font-weight: 700; text-wrap: balance; }
+h3 { font-size: 1.125rem; font-weight: 600; text-wrap: balance; }
+h4 { font-size: 1rem; font-weight: 600; }
+.text-body { font-size: 0.9375rem; line-height: 1.8; max-width: 70ch; }
+.text-caption { font-size: 0.8125rem; color: var(--yunmo-text-caption); }
+
+/* ===== 卡片 — 宣纸浮页，色差+微影区分层次（不用 border+shadow 鬼影组合） ===== */
+.yunmo-card {
+  background: var(--yunmo-paper-light);
+  border: 1px solid var(--yunmo-border);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(31, 22, 12, 0.04);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.yunmo-card:hover {
+  border-color: var(--yunmo-accent-light);
+  box-shadow: 0 2px 12px rgba(31, 22, 12, 0.08);
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .yunmo-card { transition: none; }
+  .yunmo-card:hover { transform: none; }
+}
+
+/* ===== 工具栏幽灵按钮 ===== */
+.toolbar-btn {
+  color: var(--yunmo-text-caption);
+  padding: 2px 6px;
+  font-size: 0.8125rem;
+  border-radius: 3px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.toolbar-btn:hover {
+  color: var(--yunmo-accent);
+  background: rgba(139, 58, 58, 0.06);
+}
+
+/* ===== 自定义按钮 ===== */
+.yunmo-btn {
+  background: var(--yunmo-accent);
+  color: #faf6ed;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  letter-spacing: 0.02em;
+}
+.yunmo-btn:hover { background: var(--yunmo-accent-hover); }
+.yunmo-btn:disabled { background: #c4bfb2; color: #9a9588; cursor: not-allowed; }
+
+.yunmo-btn-outline {
+  background: transparent;
+  color: var(--yunmo-accent);
+  border: 1px solid var(--yunmo-accent);
+  border-radius: 4px;
+  padding: 7px 19px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.yunmo-btn-outline:hover {
+  background: var(--yunmo-accent);
+  color: #faf6ed;
+}
+
+/* ===== Ant Design 全局覆盖 ===== */
+/* 主色调 — 朱砂 */
+:root {
+  --ant-primary-color: var(--yunmo-accent);
+  --ant-primary-color-hover: var(--yunmo-accent-hover);
+  --ant-primary-1: #faf6ed;
+  --ant-primary-2: #f0e4d4;
+  --ant-primary-5: var(--yunmo-accent);
+  --ant-primary-6: var(--yunmo-accent);
+  --ant-primary-7: var(--yunmo-accent-hover);
+}
+
+/* Primary 按钮 */
+.ant-btn-primary {
+  background: var(--yunmo-accent);
+  border-color: var(--yunmo-accent);
+  color: #faf6ed;
+  box-shadow: none;
+}
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: var(--yunmo-accent-hover) !important;
+  border-color: var(--yunmo-accent-hover) !important;
+}
+
+/* Default 按钮 */
+.ant-btn-default {
+  border-color: var(--yunmo-border);
+  color: var(--yunmo-ink);
+  box-shadow: none;
+}
+.ant-btn-default:hover {
+  color: var(--yunmo-accent) !important;
+  border-color: var(--yunmo-accent) !important;
+}
+
+/* Link 按钮 */
+.ant-btn-link {
+  color: var(--yunmo-accent);
+}
+.ant-btn-link:hover { color: var(--yunmo-accent-hover); }
+
+/* 输入框 */
+.ant-input,
+.ant-input-password {
+  border-color: var(--yunmo-border);
+  border-radius: 4px;
+  color: var(--yunmo-ink);
+  background: var(--yunmo-paper-light);
+}
+.ant-input:hover,
+.ant-input-password:hover { border-color: var(--yunmo-accent-light); }
+.ant-input:focus,
+.ant-input-password:focus,
+.ant-input-focused {
+  border-color: var(--yunmo-accent);
+  box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1);
+}
+
+/* 选择器 */
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+  border-color: var(--yunmo-accent-light) !important;
+}
+.ant-select-focused .ant-select-selector {
+  border-color: var(--yunmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1) !important;
+}
+
+/* ===== Modal 弹窗 ===== */
+.ant-modal-content {
+  border-radius: 8px;
+  background: var(--yunmo-paper-light);
+}
+.ant-modal-header {
+  border-bottom: 1px solid var(--yunmo-border);
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+}
+.ant-modal-title {
+  color: var(--yunmo-ink);
+  font-weight: 600;
+}
+.ant-modal-close { color: var(--yunmo-text-caption); }
+.ant-modal-close:hover { color: var(--yunmo-ink); }
+.ant-modal-footer {
+  border-top: 1px solid var(--yunmo-border);
+  background: transparent;
+  border-radius: 0 0 8px 8px;
+}
+.ant-modal-mask { background: rgba(31, 22, 12, 0.35); }
+
+/* ===== Drawer 抽屉 ===== */
+.ant-drawer-content {
+  background: var(--yunmo-paper-light);
+}
+.ant-drawer-header {
+  border-bottom: 1px solid var(--yunmo-border);
+  background: transparent;
+}
+.ant-drawer-title { color: var(--yunmo-ink); font-weight: 600; }
+.ant-drawer-body { background: transparent; }
+.ant-drawer-mask { background: rgba(31, 22, 12, 0.25); }
+
+/* ===== Popconfirm 气泡确认 ===== */
+.ant-popover-inner {
+  border-radius: 6px;
+  background: var(--yunmo-paper-light);
+  border: 1px solid var(--yunmo-border);
+}
+.ant-popover-title { color: var(--yunmo-ink); }
+.ant-popover-inner-content { color: var(--yunmo-text-secondary); }
+.ant-popconfirm-message-title { color: var(--yunmo-ink); }
+.ant-popover-arrow-content { --antd-arrow-background-color: var(--yunmo-paper-light); }
+
+/* ===== Tag 标签 ===== */
+.ant-tag {
+  border-radius: 3px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+.ant-tag-blue {
+  background: rgba(139, 58, 58, 0.06);
+  border-color: rgba(139, 58, 58, 0.15);
+  color: var(--yunmo-accent);
+}
+.ant-tag-green {
+  background: rgba(90, 122, 90, 0.06);
+  border-color: rgba(90, 122, 90, 0.15);
+  color: var(--yunmo-green);
+}
+.ant-tag-red {
+  background: rgba(179, 68, 58, 0.06);
+  border-color: rgba(179, 68, 58, 0.15);
+  color: var(--yunmo-red);
+}
+.ant-tag-processing {
+  background: rgba(184, 150, 74, 0.06);
+  border-color: rgba(184, 150, 74, 0.15);
+  color: var(--yunmo-gold);
+}
+.ant-tag-default {
+  background: var(--yunmo-paper-dark);
+  border-color: var(--yunmo-border);
+  color: var(--yunmo-text-secondary);
+}
+
+/* ===== Select 下拉 ===== */
+.ant-select-dropdown {
+  background: var(--yunmo-paper-light);
+  border: 1px solid var(--yunmo-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(31, 22, 12, 0.08);
+}
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(139, 58, 58, 0.06);
+  color: var(--yunmo-accent);
+}
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: var(--yunmo-paper-dark);
+}
+
+/* ===== Steps 步骤条 ===== */
+.ant-steps-item-title { color: var(--yunmo-text-secondary) !important; }
+.ant-steps-item-process .ant-steps-item-title { color: var(--yunmo-accent) !important; }
+
+/* Steps */
+.ant-steps-item-process .ant-steps-item-icon {
+  background: var(--yunmo-accent);
+  border-color: var(--yunmo-accent);
+}
+.ant-steps-item-finish .ant-steps-item-icon {
+  border-color: var(--yunmo-accent);
+}
+.ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
+  color: var(--yunmo-accent);
+}
+
+/* Progress */
+.ant-progress-bg { background: var(--yunmo-green) !important; }
+
+/* Drawer */
+.ant-drawer-header { border-bottom-color: var(--yunmo-border); }
+
+/* Collapse */
+.ant-collapse-borderless {
+  background: transparent;
+}
+
+/* Spin */
+.ant-spin-dot-item { background: var(--yunmo-accent); }
+
+/* Radio */
+.ant-radio-inner { border-color: var(--yunmo-border); }
+.ant-radio-checked .ant-radio-inner { border-color: var(--yunmo-accent); }
+.ant-radio-checked .ant-radio-inner::after { background: var(--yunmo-accent); }
+.ant-radio-wrapper:hover .ant-radio-inner { border-color: var(--yunmo-accent); }
+
+/* ===== Danger 按钮 ===== */
+.ant-btn-dangerous {
+  color: var(--yunmo-red);
+  border-color: var(--yunmo-red);
+  background: transparent;
+}
+.ant-btn-dangerous:hover,
+.ant-btn-dangerous:focus {
+  color: #faf6ed !important;
+  background: var(--yunmo-red) !important;
+  border-color: var(--yunmo-red) !important;
+}
+.ant-btn-dangerous.ant-btn-primary {
+  background: var(--yunmo-red);
+  border-color: var(--yunmo-red);
+  color: #faf6ed;
+}
+.ant-btn-dangerous.ant-btn-primary:hover {
+  background: #93362e;
+  border-color: #93362e;
+}
+
+/* ===== Badge ===== */
+.ant-badge-status-processing { background: var(--yunmo-accent-light); }
+.ant-badge-status-success { background: var(--yunmo-green); }
+.ant-badge-status-default { background: var(--yunmo-text-caption); }
+
+/* ===== Timeline 时间线 ===== */
+.ant-timeline-item-tail { border-color: var(--yunmo-border); }
+.ant-timeline-item-head { background: transparent; }
+
+/* ===== Divider 分割线 ===== */
+.ant-divider { border-color: var(--yunmo-border); }
+
+/* ===== Empty 空状态 ===== */
+.ant-empty-description { color: var(--yunmo-text-caption); }
+
+/* ===== Form 表单 ===== */
+.ant-form-item-label > label {
+  color: var(--yunmo-ink);
+  font-size: 0.8125rem;
+}
+.ant-form-item-explain-error { color: var(--yunmo-red); }
+
+/* ===== Alert ===== */
+.ant-alert-info {
+  background: var(--yunmo-paper-dark);
+  border-color: var(--yunmo-border);
+}
+.ant-alert-message { color: var(--yunmo-ink); }
+
+/* ===== List ===== */
+.ant-list-split .ant-list-item { border-bottom-color: var(--yunmo-border); }
+
+/* ===== 滚动条 ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--yunmo-paper-dark); }
+::-webkit-scrollbar-thumb {
+  background: var(--yunmo-accent-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--yunmo-accent); }
+
+/* ===== 卡片入场瀑布动画 ===== */
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  animation: cardReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-enter { animation: none; }
+}

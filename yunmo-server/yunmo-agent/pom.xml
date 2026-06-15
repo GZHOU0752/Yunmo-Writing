@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.yunmo</groupId>
+        <artifactId>yunmo-server</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>yunmo-agent</artifactId>
+    <name>YunMo Agent</name>
+    <description>AI Agent 核心 — Agent 工厂 + 6 个 Agent + 工具 + 流水线引擎</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yunmo</groupId>
+            <artifactId>yunmo-llm</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yunmo</groupId>
+            <artifactId>yunmo-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,77 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: yunmo-server
+  codec:
+    max-in-memory-size: 100MB
+  datasource:
+    url: jdbc:h2:file:./data/novelwriter;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+  liquibase:
+    enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DB:0}
+      timeout: 5000ms
+      client-type: jedis
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+management:
+  health:
+    redis:
+      enabled: false
+
+yunmo:
+  app:
+    secret-key: ${MOLU_SECRET_KEY:change-me-in-production}
+    chroma-url: ${CHROMA_URL:http://localhost:8000}
+    redis-url: ${REDIS_URL:redis://localhost:6379/0}
+    default-user-id: "00000000-0000-0000-0000-000000000000"
+    max-retries: 3
+    context-token-budget: 46000
+  llm:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
+      base-url: ${DEEPSEEK_API_BASE:https://api.deepseek.com}
+      model: deepseek-v4-pro
+    kimi:
+      api-key: ${KIMI_API_KEY:your-kimi-api-key}
+      base-url: ${KIMI_API_BASE:https://api.moonshot.cn/v1}
+      model: moonshot-v1-8k
+    qwen:
+      api-key: ${QWEN_API_KEY:your-qwen-api-key}
+      base-url: ${QWEN_API_BASE:https://dashscope.aliyuncs.com/compatible-mode/v1}
+      model: qwen-plus
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+logging:
+  level:
+    com.yunmo: DEBUG
+    reactor.netty: INFO
