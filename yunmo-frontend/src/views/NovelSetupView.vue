@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useNovelStore } from '@/composables/useNovelStore'
@@ -10,151 +10,212 @@ const api = useApi()
 const novelStore = useNovelStore()
 const novelId = route.params.id
 
-const current = ref(0)
+const activeTab = ref(0)
 
-// Step 1: 类型确认
+// Tab 0: 类型
 const genreId = ref('xianxia')
 const genres = ref([])
+const genreCards = [
+  { id: 'xuanhuan', icon: '', name: '东方玄幻', desc: '修真、斗气、异世界，宏大世界观' },
+  { id: 'qihuan', icon: '', name: '西方奇幻', desc: '魔法、龙族、中世纪背景' },
+  { id: 'xianxia', icon: '', name: '东方仙侠', desc: '修仙、天道、古典东方美学' },
+  { id: 'dushi', icon: '', name: '都市', desc: '现代都市、职场、日常' },
+  { id: 'xuanyi', icon: '', name: '悬疑灵异', desc: '推理、超自然、心理惊悚' },
+  { id: 'qingxiaoshuo', icon: '', name: '轻小说', desc: '日系风格、轻松幽默' },
+  { id: 'tongren', icon: '', name: '同人', desc: '基于原作的二次创作' },
+  { id: 'duanpian', icon: '', name: '短篇', desc: '短篇故事、小品文' },
+]
 
-// Step 2: 世界观
-const worldElements = ref([])
-const newWorldName = ref('')
-const newWorldDesc = ref('')
+// Tab 1: 大纲
+const outlineText = ref('')
+const generatingOutline = ref(false)
 
-// Step 3: 角色
-const characters = ref([])
-const newCharName = ref('')
-const newCharDesc = ref('')
+// 完成指示
+const tabCompleted = ref([false, false])
+
+// 计算属性：是否可以进入下一步
+const canGoNext = computed(() => {
+  switch (activeTab.value) {
+    case 0: return !!genreId.value
+    default: return true
+  }
+})
 
 onMounted(async () => {
   try {
     const novel = await api.novels.get(novelId)
-    genreId.value = novel.genreId
+    genreId.value = novel.genreId || 'xianxia'
+    outlineText.value = novel.outline || ''
   } catch (e) {
     console.error('加载小说信息失败:', e)
   }
-  // 动态加载类型列表
   try {
     await novelStore.fetchGenres()
     genres.value = novelStore.genres
   } catch { genres.value = [] }
-  // 加载已有世界观元素和角色
-  try {
-    worldElements.value = await api.world.list(novelId)
-    characters.value = await api.characters.list(novelId)
-  } catch { /* 首次创建时可能为空 */ }
 })
 
-async function addWorldElement() {
-  if (!newWorldName.value.trim()) return
+async function selectGenre(gid) {
+  genreId.value = gid
   try {
-    const w = await api.world.create(novelId, {
-      name: newWorldName.value.trim(),
-      description: newWorldDesc.value,
-      element_type: 'OTHER',
-    })
-    worldElements.value.push(w)
-    newWorldName.value = ''
-    newWorldDesc.value = ''
+    await api.novels.update(novelId, { genreId: gid })
+    tabCompleted.value[0] = true
   } catch (e) {
-    console.error('添加世界观元素失败:', e)
+    console.error('更新类型失败:', e)
   }
 }
 
-async function addCharacter() {
-  if (!newCharName.value.trim()) return
+async function generateOutline() {
+  generatingOutline.value = true
   try {
-    const c = await api.characters.create(novelId, {
-      name: newCharName.value.trim(),
-      description: newCharDesc.value,
-      role: 'SUPPORTING',
-      importance: 5,
-    })
-    characters.value.push(c)
-    newCharName.value = ''
-    newCharDesc.value = ''
+    const result = await api.novels.generateOutline(novelId)
+    if (result?.outline) {
+      outlineText.value = result.outline
+      tabCompleted.value[1] = true
+    }
   } catch (e) {
-    console.error('添加角色失败:', e)
+    console.error('生成大纲失败:', e)
+  } finally {
+    generatingOutline.value = false
+  }
+}
+
+async function saveOutline() {
+  try {
+    await api.novels.update(novelId, { outline: outlineText.value })
+    tabCompleted.value[1] = true
+  } catch (e) {
+    console.error('保存大纲失败:', e)
   }
 }
 
 function finish() {
   router.push(`/novels/${novelId}/write`)
 }
+
 </script>
 
 <template>
-  <div class="min-h-[100dvh] p-6 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold text-[var(--yunmo-accent)] mb-6">设定你的小说</h1>
+  <div class="min-h-[100dvh] flex flex-col">
+    <!-- 头部 -->
+    <header class="h-14 border-b border-[var(--yunmo-border)] flex items-center px-6 bg-[var(--yunmo-paper-light)] flex-shrink-0">
+      <span class="text-xs cursor-pointer hover:text-[var(--yunmo-accent)] transition-fast mr-2"
+            style="color:var(--yunmo-text-caption)"
+            @click="router.push('/dashboard')">书房</span>
+      <span class="text-xs mr-2" style="color:var(--yunmo-border)">/</span>
+      <span class="text-sm font-semibold" style="color:var(--yunmo-ink)">小说设定</span>
+    </header>
 
-    <a-steps :current="current" class="mb-8">
-      <a-step title="选择类型" />
-      <a-step title="世界观" />
-      <a-step title="角色设定" />
-      <a-step title="完成" />
-    </a-steps>
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 左侧 Tab 导航 -->
+      <nav class="w-44 border-r border-[var(--yunmo-border)] bg-[var(--yunmo-paper-light)] flex flex-col py-4 flex-shrink-0">
+        <button
+          v-for="(tab, i) in ['类型', '大纲']"
+          :key="i"
+          class="setup-tab-item"
+          :class="{
+            active: activeTab === i,
+            completed: tabCompleted[i],
+          }"
+          @click="activeTab = i"
+        >
+          <span
+            class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border-2"
+            :style="{
+              borderColor: tabCompleted[i] ? 'var(--yunmo-green)' : activeTab === i ? 'var(--yunmo-accent)' : 'var(--yunmo-border)',
+              background: tabCompleted[i] ? 'var(--yunmo-green)' : activeTab === i ? 'var(--yunmo-accent)' : 'transparent',
+              color: (tabCompleted[i] || activeTab === i) ? '#fff' : 'var(--yunmo-text-caption)',
+            }"
+          >
+            <template v-if="tabCompleted[i]">✓</template>
+            <template v-else>{{ i + 1 }}</template>
+          </span>
+          <span>{{ tab }}</span>
+        </button>
+      </nav>
 
-    <!-- Step 0: 类型 -->
-    <div v-if="current === 0" class="yunmo-card p-6">
-      <h2 class="text-lg font-semibold mb-4">选择类型</h2>
-      <a-radio-group v-model:value="genreId">
-        <a-radio
-          v-for="g in (genres.length > 0 ? genres : [{ id: 'xuanhuan', name: '玄幻' }, { id: 'qihuan', name: '奇幻' }, { id: 'xianxia', name: '仙侠' }, { id: 'dushi', name: '都市' }, { id: 'xuanyi', name: '悬疑灵异' }, { id: 'qingxiaoshuo', name: '轻小说' }])"
-          :key="g.id"
-          :value="g.id"
-          class="block mt-2"
-        >{{ g.name }}</a-radio>
-      </a-radio-group>
-      <a-button type="primary" class="mt-6" @click="current = 1">下一步</a-button>
+      <!-- 右侧内容面板 -->
+      <div class="flex-1 overflow-y-auto p-8">
+        <!-- Tab 0: 类型 -->
+        <div v-if="activeTab === 0">
+          <h2 class="text-xl font-bold mb-2" style="color:var(--yunmo-ink)">选择小说类型</h2>
+          <p class="text-sm mb-6" style="color:var(--yunmo-text-caption)">类型将决定 AI 的写作风格和禁词规则</p>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div
+              v-for="g in genreCards"
+              :key="g.id"
+              class="yunmo-card p-4 cursor-pointer transition-spring"
+              :style="genreId === g.id
+                ? { borderColor: 'var(--yunmo-accent)', boxShadow: '0 2px 12px rgba(139,58,58,0.12)' }
+                : {}"
+              @click="selectGenre(g.id)"
+            >
+              <div class="text-2xl mb-2">{{ g.icon }}</div>
+              <div class="font-semibold text-sm" :style="genreId === g.id ? { color: 'var(--yunmo-accent)' } : { color: 'var(--yunmo-ink)' }">
+                {{ g.name }}
+              </div>
+              <div class="text-xs mt-1" style="color:var(--yunmo-text-caption)">{{ g.desc }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 1: 大纲 -->
+        <div v-if="activeTab === 1">
+          <h2 class="text-xl font-bold mb-2" style="color:var(--yunmo-ink)">全书大纲</h2>
+          <p class="text-sm mb-4" style="color:var(--yunmo-text-caption)">
+            概述整部小说的主线剧情，AI 将据此规划章节。全书目标总字数不少于 <strong style="color:var(--yunmo-accent)">150万字</strong>。
+          </p>
+
+          <div class="yunmo-card p-4">
+            <a-textarea
+              v-model:value="outlineText"
+              placeholder="在这里写下你的故事大纲……&#10;&#10;例如：&#10;少年林风在山中偶然获得一枚神秘玉佩，从此踏上修仙之路。&#10;他先在外门弟子中崭露头角，后被卷入正邪之争……"
+              :rows="12"
+              class="w-full"
+              @blur="saveOutline"
+            />
+            <div class="flex items-center justify-between mt-3">
+              <span class="text-xs" style="color:var(--yunmo-text-caption)">自动保存 · {{ outlineText.length }} 字</span>
+              <a-button
+                type="primary"
+                :loading="generatingOutline"
+                @click="generateOutline"
+              >
+                {{ generatingOutline ? '生成中...' : 'AI 生成大纲' }}
+              </a-button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Step 1: 世界观 -->
-    <div v-if="current === 1" class="yunmo-card p-6">
-      <h2 class="text-lg font-semibold mb-4">世界观设定</h2>
-      <div class="flex gap-2 mb-4">
-        <a-input v-model:value="newWorldName" placeholder="元素名称" class="flex-1" />
-        <a-input v-model:value="newWorldDesc" placeholder="描述" class="flex-1" />
-        <a-button @click="addWorldElement">添加</a-button>
-      </div>
-      <a-list :data-source="worldElements" size="small">
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <strong>{{ item.name }}</strong>: {{ item.description }}
-          </a-list-item>
-        </template>
-      </a-list>
-      <div class="flex gap-2 mt-6">
-        <a-button @click="current = 0">上一步</a-button>
-        <a-button type="primary" @click="current = 2">下一步</a-button>
-      </div>
-    </div>
+    <!-- 底部操作栏 -->
+    <div class="h-14 border-t border-[var(--yunmo-border)] bg-[var(--yunmo-paper-light)] flex items-center justify-between px-8 flex-shrink-0">
+      <a-button
+        v-if="activeTab > 0"
+        @click="activeTab--"
+      >上一步</a-button>
+      <div v-else />
 
-    <!-- Step 2: 角色 -->
-    <div v-if="current === 2" class="yunmo-card p-6">
-      <h2 class="text-lg font-semibold mb-4">角色设定</h2>
-      <div class="flex gap-2 mb-4">
-        <a-input v-model:value="newCharName" placeholder="角色名" />
-        <a-input v-model:value="newCharDesc" placeholder="描述" class="flex-1" />
-        <a-button @click="addCharacter">添加</a-button>
+      <div class="flex items-center gap-3">
+        <span class="text-xs" style="color:var(--yunmo-text-caption)">
+          {{ activeTab + 1 }} / 2
+        </span>
+        <a-button
+          v-if="activeTab < 1"
+          type="primary"
+          @click="activeTab++"
+          :disabled="!canGoNext"
+        >下一步</a-button>
+        <a-button
+          v-else
+          type="primary"
+          size="large"
+          class="seal-btn"
+          @click="finish"
+        >开始写作</a-button>
       </div>
-      <a-list :data-source="characters" size="small">
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <strong>{{ item.name }}</strong>: {{ item.description }}
-          </a-list-item>
-        </template>
-      </a-list>
-      <div class="flex gap-2 mt-6">
-        <a-button @click="current = 1">上一步</a-button>
-        <a-button type="primary" @click="current = 3">下一步</a-button>
-      </div>
-    </div>
-
-    <!-- Step 3: 完成 -->
-    <div v-if="current === 3" class="yunmo-card p-6 text-center">
-      <h2 class="text-xl font-semibold mb-2">一切就绪</h2>
-      <p class="text-[var(--yunmo-text-caption)] mb-6">你可以随时在写作界面补充世界观和角色设定</p>
-      <a-button type="primary" size="large" @click="finish">开始写作</a-button>
     </div>
   </div>
 </template>

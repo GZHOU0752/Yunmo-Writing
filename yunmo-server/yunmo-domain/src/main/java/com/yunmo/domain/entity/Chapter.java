@@ -42,7 +42,7 @@ public class Chapter extends BaseEntity {
     private Integer wordCount = 0;
 
     @Column(name = "target_word_count")
-    private Integer targetWordCount = 2000;
+    private Integer targetWordCount = 2500;
 
     /** 写作计划（AI 生成前注入的文本指示） */
     @Column(name = "writing_plan", columnDefinition = "TEXT")

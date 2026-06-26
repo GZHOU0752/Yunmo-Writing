@@ -9,9 +9,13 @@ const props = defineProps({ content: String })
 const emit = defineEmits(['update:content'])
 
 const editor = useEditor({
-  content: props.content,
+  content: plainTextToHTML(props.content),
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      codeBlock: false,
+      code: false,
+      blockquote: false,
+    }),
     Underline,
     Placeholder.configure({ placeholder: '落笔生花...' }),
   ],
@@ -57,7 +61,15 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 书写纸感 */
+/* 书写纸感 — 非 scoped 部分在下方，因为 ProseMirror 动态 DOM 不受 scoped 约束 */
+
+.ProseMirror:focus {
+  outline: none;
+}
+</style>
+
+<!-- ProseMirror 样式不可 scoped：其内部 DOM 由 ProseMirror 运行时生成，不带 Vue scoped data 属性 -->
+<style>
 .ProseMirror {
   padding: 2rem 1rem;
   caret-color: var(--yunmo-accent);
@@ -88,10 +100,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
   height: 0;
   text-indent: 2em;
-}
-
-.ProseMirror:focus {
-  outline: none;
 }
 
 /* 暗色模式下强制编辑器内所有文字使用变量 */
