@@ -1,8 +1,10 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import WritingTrendChart from './WritingTrendChart.vue'
 
 const props = defineProps({ novelId: String })
+const expanded = ref(false)
 const api = useApi()
 const stats = ref(null)
 const loading = ref(false)
@@ -80,7 +82,7 @@ watch(() => props.novelId, fetchStats, { immediate: true })
             opacity: inkDepth(i) === 'transparent' ? 0 : 1,
             border: inkDepth(i) === 'transparent' ? '1px dashed var(--yunmo-border)' : 'none',
           }"
-          :title="((stats.weekDetail?.[i]?.wordCount || 0) / 1000).toFixed(1) + 'k'"
+          :title="'约' + ((stats.weekDetail?.[i]?.wordCount || 0) / 1000).toFixed(1) + '千字'"
         />
       </div>
     </div>
@@ -90,5 +92,13 @@ watch(() => props.novelId, fetchStats, { immediate: true })
       <span>本周 {{ (stats.weekTotal || 0).toLocaleString() }} 字</span>
       <span>本月 {{ (stats.monthTotal || 0).toLocaleString() }} 字</span>
     </div>
+
+    <!-- 展开趋势图 -->
+    <div class="text-center mt-2">
+      <a-button size="small" type="text" class="text-[10px]" style="color:var(--yunmo-text-caption)" @click="expanded = !expanded">
+        {{ expanded ? '收起趋势' : '展开趋势 ▾' }}
+      </a-button>
+    </div>
+    <WritingTrendChart v-if="expanded" :novel-id="novelId" />
   </div>
 </template>

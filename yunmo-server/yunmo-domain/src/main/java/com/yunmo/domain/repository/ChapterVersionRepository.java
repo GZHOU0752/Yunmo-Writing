@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface ChapterVersionRepository extends JpaRepository<ChapterVersion, String> {
     List<ChapterVersion> findByChapterIdOrderByVersionNumberDesc(String chapterId);
+    List<ChapterVersion> findByChapterIdAndBranchNameOrderByVersionNumberDesc(String chapterId, String branchName);
     Optional<ChapterVersion> findTopByChapterIdOrderByVersionNumberDesc(String chapterId);
     int countByChapterId(String chapterId);
 }

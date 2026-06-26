@@ -15,6 +15,8 @@ import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * OpenAI 兼容 API 抽象基类
@@ -32,7 +34,7 @@ public abstract class AbstractOpenAIProvider implements LLMProvider {
 
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
-                .responseTimeout(Duration.ofSeconds(120));
+                .responseTimeout(Duration.ofSeconds(300));  // 300s: qwen-max 长篇润色可能超120s
 
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
@@ -45,25 +47,51 @@ public abstract class AbstractOpenAIProvider implements LLMProvider {
     @Override
     public LLMResponse generate(List<LLMMessage> messages, LLMConfig config) {
         Map<String, Object> body = buildRequestBody(messages, config, false);
-        try {
-            String responseJson = webClient.post()
-                    .uri("/chat/completions")
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    // block() 必须在非事件循环线程上调用（如 boundedElastic），
-                    // 调用方需通过 subscribeOn(Schedulers.boundedElastic()) 确保线程隔离
-                    .block(Duration.ofSeconds(config.timeoutSeconds() > 0
-                            ? config.timeoutSeconds()
-                            : 120));
-            if (responseJson == null) {
-                throw new RuntimeException(providerName() + " API 响应超时");
-            }
-            return parseResponse(responseJson, config.model());
-        } catch (Exception e) {
-            log.error("{} API 调用失败", providerName(), e);
-            throw new RuntimeException(providerName() + " API 调用失败: " + e.getMessage(), e);
+        int timeout = config.timeoutSeconds() > 0 ? config.timeoutSeconds() : 300;
+
+        // 清除线程残留中断标志
+        if (Thread.interrupted()) {
+            log.warn("{} 检测到残留中断标志，已清除", providerName());
         }
+
+        // 用 CompletableFuture 替代 Mono.block()。
+        // 原因：Mono.block() 基于 CountDownLatch.await()，Reactor 取消链会中断 boundedElastic 线程，
+        //       导致 block() 抛 InterruptedException。改用 CompletableFuture 后，LLM HTTP 调用完全
+        //       异步进行，等待线程被打断时我们忽略中断信号继续等——LLM 请求本身不受影响。
+        CompletableFuture<String> future = new CompletableFuture<>();
+        webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(future::completeExceptionally)
+                .subscribe(future::complete);
+
+        String responseJson = null;
+        long deadline = System.currentTimeMillis() + timeout * 1000L;
+        while (responseJson == null && System.currentTimeMillis() < deadline) {
+            try {
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0) break;
+                responseJson = future.get(remaining, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                // Reactor 取消链打断了等待线程，但 LLM HTTP 调用仍在进行。
+                // 清除标志后继续等待——我们不关心取消信号，只关心 LLM 是否返回。
+                Thread.interrupted();
+                log.trace("{} 等待LLM响应时被打断，继续等待", providerName());
+            } catch (java.util.concurrent.TimeoutException e) {
+                break; // 总体超时
+            } catch (java.util.concurrent.ExecutionException e) {
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                log.error("{} API 调用失败", providerName(), cause);
+                throw new RuntimeException(providerName() + " API 调用失败: " + cause.getMessage(), cause);
+            }
+        }
+
+        if (responseJson == null) {
+            throw new RuntimeException(providerName() + " API 响应超时 (" + timeout + "s)");
+        }
+        return parseResponse(responseJson, config.model());
     }
 
     @Override
@@ -123,6 +151,9 @@ public abstract class AbstractOpenAIProvider implements LLMProvider {
             body.put("top_p", config.topP());
         }
         body.put("stream", stream);
+        // 频率惩罚和存在惩罚 — 减少重复用词，增加词汇多样性
+        if (config.frequencyPenalty() > 0) body.put("frequency_penalty", config.frequencyPenalty());
+        if (config.presencePenalty() > 0) body.put("presence_penalty", config.presencePenalty());
         return body;
     }
 

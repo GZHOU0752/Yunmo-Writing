@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
         >
           开始生成 {{ levelName(childLevel) }} 大纲
         </a-button>
-        <a-button v-else danger @click="stopCompletion">停止生成</a-button>
+        <a-button v-else @click="stopCompletion">停止生成</a-button>
         <a-button
           v-if="completed && streamedText"
           type="primary"

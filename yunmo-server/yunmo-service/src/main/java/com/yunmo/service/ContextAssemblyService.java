@@ -57,12 +57,14 @@ public class ContextAssemblyService {
         // Layer 1: 静态圣经 (~8K)
         context.append(buildBible(genreConfig, characters));
 
-        // Layer 2: 活跃上下文 (~20K) — 仅加载上一章正文
+        // Layer 2: 活跃上下文 (~20K) — 上一章全文(8K) + 上上章摘要(1K)
         Chapter prevChapter = chapterRepo.findFirstByNovelIdAndChapterNumber(novelId, chapterNumber - 1)
                 .orElse(null);
-        context.append(buildActiveContext(prevChapter, characters, chapterNumber));
+        Chapter prevPrevChapter = chapterRepo.findFirstByNovelIdAndChapterNumber(novelId, chapterNumber - 2)
+                .orElse(null);
+        context.append(buildActiveContext(prevChapter, prevPrevChapter, characters, chapterNumber));
 
-        // Layer 3: 压缩历史 (~15K) — 加载前 10 章（不含正文的摘要元数据）
+        // Layer 3: 压缩历史 (~15K) — 加载前 10 章，带一句话摘要
         List<Chapter> recentChapters = chapterRepo
                 .findPreviousChapters(novelId, chapterNumber)
                 .stream()
@@ -98,18 +100,30 @@ public class ContextAssemblyService {
     }
 
     private String buildActiveContext(Chapter prevChapter,
+                                       Chapter prevPrevChapter,
                                        List<Character> characters,
                                        int currentChapterNumber) {
         StringBuilder sb = new StringBuilder();
         sb.append("=== 活跃上下文 ===\n");
 
-        // 上一章正文（前 3000 字）
+        // 上一章全文（前8000字，覆盖绝大部分章节）
         if (prevChapter != null && prevChapter.getContent() != null) {
             String content = prevChapter.getContent();
-            sb.append("上一章摘要: ")
-                    .append(content.length() > 3000
-                            ? content.substring(0, 3000) + "..."
+            sb.append("上一章正文:\n")
+                    .append(content.length() > 8000
+                            ? content.substring(0, 8000) + "...[截断]"
                             : content)
+                    .append("\n");
+        }
+
+        // 上上章摘要（前1000字）
+        if (prevPrevChapter != null && prevPrevChapter.getContent() != null) {
+            String content = prevPrevChapter.getContent();
+            String clean = content.replaceAll("&#\\d+;", "").replaceAll("\\s+", "");
+            sb.append("\n上上章摘要: ")
+                    .append(clean.length() > 1000
+                            ? clean.substring(0, 1000) + "..."
+                            : clean)
                     .append("\n");
         }
 
@@ -133,8 +147,17 @@ public class ContextAssemblyService {
         sb.append("=== 历史摘要 ===\n");
 
         for (var c : recentChapters) {
-            sb.append("第").append(c.getChapterNumber()).append("章: ");
-            sb.append(c.getSummary() != null ? c.getSummary() : "(无摘要)");
+            sb.append("第").append(c.getChapterNumber()).append("章 ");
+            sb.append(c.getTitle() != null ? c.getTitle() : "");
+            // DB摘要或自动从正文提取
+            String summary = c.getSummary();
+            if (summary == null && c.getContent() != null) {
+                String clean = c.getContent().replaceAll("&#\\d+;", "").replaceAll("\\s+", "");
+                summary = clean.length() > 80 ? clean.substring(0, 80) + "..." : clean;
+            }
+            if (summary != null && !summary.isEmpty()) {
+                sb.append(" — ").append(summary);
+            }
             sb.append("\n");
         }
 

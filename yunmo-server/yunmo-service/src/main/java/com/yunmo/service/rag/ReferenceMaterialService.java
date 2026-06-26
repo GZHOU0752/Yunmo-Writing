@@ -44,55 +44,57 @@ public class ReferenceMaterialService {
      * @param content  txt 文件内容
      * @return 创建的 ReferenceMaterial
      */
-    @Transactional
     public ReferenceMaterial upload(String novelId, String fileName, String content) {
-        // 1. 创建素材记录
+        // 1. 先保存素材记录（独立事务，嵌入失败也不回滚）
         ReferenceMaterial material = new ReferenceMaterial();
         material.setNovelId(novelId);
         material.setFileName(fileName);
         material.setFileSize((long) content.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         material.setStatus("indexing");
+        material.setChunkCount(0);
         material = repo.save(material);
+        final String materialId = material.getId();
 
+        // 2. 异步嵌入（失败不影响素材记录保存）
         try {
-            // 2. 文本分块
             List<DocumentChunker.Chunk> chunks = chunker.chunk(content);
             log.info("素材分块完成: {} → {} 块", fileName, chunks.size());
 
-            // 3. 向量化（阿里云百炼 DashScope）
+            // 重新获取受管entity，避免脱管entity merge冲突
+            ReferenceMaterial managed = repo.findById(materialId).orElseThrow();
+            managed.setChunkCount(chunks.size());
+            repo.save(managed);
+
             List<String> texts = chunks.stream().map(DocumentChunker.Chunk::text).toList();
             List<float[]> vectors = embeddingService.embedBatch(texts);
 
-            // 4. 存入向量存储
             List<VectorStoreService.VectorEntry> entries = new ArrayList<>();
             for (int i = 0; i < chunks.size(); i++) {
                 DocumentChunker.Chunk chunk = chunks.get(i);
-                float[] vector = i < vectors.size() ? vectors.get(i) : new float[0];
+                float[] vector = i < vectors.size() ? vectors.get(i) : new float[1024];
                 entries.add(new VectorStoreService.VectorEntry(
                         UUID.randomUUID().toString(),
                         chunk.text(),
                         vector,
                         chunk.index(),
-                        material.getId(),
+                        materialId,
                         System.currentTimeMillis()
                 ));
             }
-
             vectorStore.appendEntries(novelId, entries);
 
-            // 5. 更新素材状态
-            material.setChunkCount(chunks.size());
-            material.setStatus("ready");
-            repo.save(material);
-
+            managed = repo.findById(materialId).orElseThrow();
+            managed.setStatus("ready");
+            repo.save(managed);
             log.info("素材索引完成: {}", fileName);
-            return material;
         } catch (Exception e) {
-            log.error("素材索引失败: {}", fileName, e);
-            material.setStatus("error");
-            repo.save(material);
-            throw new RuntimeException("素材索引失败: " + e.getMessage(), e);
+            log.error("素材嵌入失败（素材已保存，可稍后重新索引）: {}", fileName, e);
+            ReferenceMaterial managed = repo.findById(materialId).orElseThrow();
+            managed.setStatus("error");
+            repo.save(managed);
         }
+
+        return material;
     }
 
     /** 删除素材及其向量 */
@@ -109,5 +111,78 @@ public class ReferenceMaterialService {
     /** 获取小说的素材数量 */
     public long count(String novelId) {
         return repo.countByNovelId(novelId);
+    }
+
+    /**
+     * 获取当前章节应激活的素材（基于触发规则）
+     * - MANUAL: 不自动激活
+     * - AUTO: 始终激活（遵守冷却）
+     * - KEYWORD: 章节内容匹配触发关键词时激活（遵守冷却）
+     */
+    public List<ReferenceMaterial> getActiveMaterials(String novelId, int chapterNumber, String chapterContent) {
+        List<ReferenceMaterial> all = repo.findByNovelIdOrderByCreatedAtDesc(novelId);
+        List<ReferenceMaterial> active = new ArrayList<>();
+
+        for (ReferenceMaterial m : all) {
+            if (!"ready".equals(m.getStatus())) continue;
+
+            String mode = m.getTriggerMode() != null ? m.getTriggerMode() : "MANUAL";
+
+            // 检查冷却
+            if (m.getCooldownChapters() != null && m.getCooldownChapters() > 0
+                && m.getLastActivatedChapter() != null) {
+                if (chapterNumber - m.getLastActivatedChapter() < m.getCooldownChapters()) {
+                    continue;
+                }
+            }
+
+            boolean shouldActivate = switch (mode) {
+                case "AUTO" -> true;
+                case "KEYWORD" -> matchKeywords(m, chapterContent);
+                default -> false; // MANUAL
+            };
+
+            if (shouldActivate) {
+                active.add(m);
+                // 更新最后激活章节
+                m.setLastActivatedChapter(chapterNumber);
+                repo.save(m);
+            }
+        }
+
+        // 按优先级降序排列
+        active.sort((a, b) -> Integer.compare(
+            b.getPriority() != null ? b.getPriority() : 0,
+            a.getPriority() != null ? a.getPriority() : 0));
+        return active;
+    }
+
+    /** 检查素材的关键词是否在内容中命中 */
+    private boolean matchKeywords(ReferenceMaterial material, String content) {
+        String keywords = material.getTriggerKeywords();
+        if (keywords == null || keywords.isBlank()) return false;
+        if (content == null || content.isEmpty()) return false;
+
+        String lowerContent = content.toLowerCase();
+        for (String kw : keywords.split(",")) {
+            String trimmed = kw.trim();
+            if (!trimmed.isEmpty() && lowerContent.contains(trimmed.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 更新素材的触发配置 */
+    public ReferenceMaterial updateTriggerConfig(String materialId, String triggerMode,
+                                                  String triggerKeywords,
+                                                  Integer cooldownChapters, Integer priority) {
+        ReferenceMaterial m = repo.findById(materialId).orElse(null);
+        if (m == null) return null;
+        if (triggerMode != null) m.setTriggerMode(triggerMode);
+        if (triggerKeywords != null) m.setTriggerKeywords(triggerKeywords);
+        if (cooldownChapters != null) m.setCooldownChapters(cooldownChapters);
+        if (priority != null) m.setPriority(priority);
+        return repo.save(m);
     }
 }

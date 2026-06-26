@@ -1,0 +1,115 @@
+services:
+  # ===== MySQL 数据库 =====
+  mysql:
+    image: mysql:8.0
+    container_name: yunmo-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - yunmo-net
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yunmo}
+      MYSQL_USER: ${MYSQL_USER:-yunmo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-yunmo123}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===== Chroma 向量数据库 =====
+  chroma:
+    image: chromadb/chroma:0.6.3
+    container_name: yunmo-chroma
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    networks:
+      - yunmo-net
+
+  # ===== Redis 缓存 =====
+  redis:
+    image: redis:7.4-alpine
+    container_name: yunmo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - yunmo-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # ===== Spring Boot 后端 =====
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: yunmo-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - yunmo-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - KIMI_API_KEY=${KIMI_API_KEY}
+      - QWEN_API_KEY=${QWEN_API_KEY}
+      - MOLU_SECRET_KEY=${MOLU_SECRET_KEY}
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-yunmo}
+      - MYSQL_USER=${MYSQL_USER:-yunmo}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-yunmo123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_URL=http://chroma:8000
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost}
+
+  # ===== Vue 前端 (nginx) =====
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: yunmo-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - yunmo-net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
+    driver: local
+  chroma-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  yunmo-net:
+    driver: bridge

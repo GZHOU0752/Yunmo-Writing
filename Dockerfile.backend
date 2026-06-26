@@ -1,0 +1,51 @@
+# ===== 阶段1：构建 =====
+FROM maven:3.9-eclipse-temurin-17 AS build
+
+WORKDIR /build
+
+# 先复制父 pom 和模块 pom，利用 Docker 层缓存加速
+COPY yunmo-server/pom.xml pom.xml
+COPY yunmo-server/yunmo-common/pom.xml yunmo-common/pom.xml
+COPY yunmo-server/yunmo-domain/pom.xml yunmo-domain/pom.xml
+COPY yunmo-server/yunmo-llm/pom.xml yunmo-llm/pom.xml
+COPY yunmo-server/yunmo-agent/pom.xml yunmo-agent/pom.xml
+COPY yunmo-server/yunmo-service/pom.xml yunmo-service/pom.xml
+COPY yunmo-server/yunmo-api/pom.xml yunmo-api/pom.xml
+COPY yunmo-server/yunmo-server-app/pom.xml yunmo-server-app/pom.xml
+
+# 配置阿里云 Maven 镜像加速
+RUN sed -i 's|</mirrors>|<mirror><id>aliyun</id><mirrorOf>central</mirrorOf><name>aliyun</name><url>https://maven.aliyun.com/repository/public</url></mirror></mirrors>|' /usr/share/maven/conf/settings.xml
+
+# 下载依赖（这层会被缓存，除非 pom 变化）
+RUN mvn dependency:go-offline -B -q || true
+
+# 复制全部源码
+COPY yunmo-server/ .
+
+# 编译打包（跳过测试）
+RUN mvn clean package -DskipTests -B -q
+
+# ===== 阶段2：运行 =====
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+# 创建非 root 用户（uid 不写死，避免冲突）
+RUN useradd yunmo 2>/dev/null; chown -R yunmo:yunmo /app && \
+    apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# 创建数据目录（H2 文件数据库）
+RUN mkdir -p /app/data && chown yunmo:yunmo /app/data
+
+# 从构建阶段复制 jar
+COPY --from=build /build/yunmo-server-app/target/yunmo-server-app-*.jar app.jar
+
+USER yunmo
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 --start-period=60s \
+    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

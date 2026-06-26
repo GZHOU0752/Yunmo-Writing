@@ -23,7 +23,7 @@ export function useSSE() {
     // 超时保护
     const timeoutId = setTimeout(() => {
       abortController?.abort()
-      error.value = 'SSE 连接超时'
+      error.value = '连接超时，请重试'
     }, SSE_TIMEOUT_MS)
 
     try {
@@ -68,7 +68,7 @@ export function useSSE() {
       }
     } catch (e) {
       if (e.name !== 'AbortError') {
-        error.value = e.message || 'SSE 连接异常'
+        error.value = '连接异常，请检查网络后重试'
       }
     } finally {
       clearTimeout(timeoutId)

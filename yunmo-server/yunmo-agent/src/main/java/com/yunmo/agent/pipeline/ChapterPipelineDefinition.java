@@ -14,11 +14,17 @@ public class ChapterPipelineDefinition {
     private final Map<String, PipelineStage> stages = new LinkedHashMap<>();
     private final Map<String, String> edges = new LinkedHashMap<>();
     private final Map<String, ConditionalRouter> routers = new LinkedHashMap<>();
+    /**
+     * 并行边: from stage → [stageA, stageB, ...]
+     * from 完成后，列表中的阶段并行执行；全部完成后走 from 的普通边
+     */
+    private final Map<String, List<String>> parallelEdges = new LinkedHashMap<>();
 
     public String entryPoint() { return entryPoint; }
     public Map<String, PipelineStage> stages() { return Collections.unmodifiableMap(stages); }
     public Map<String, String> edges() { return Collections.unmodifiableMap(edges); }
     public Map<String, ConditionalRouter> routers() { return Collections.unmodifiableMap(routers); }
+    public Map<String, List<String>> parallelEdges() { return Collections.unmodifiableMap(parallelEdges); }
 
     public static Builder builder() {
         return new Builder();
@@ -29,6 +35,7 @@ public class ChapterPipelineDefinition {
         private final Map<String, PipelineStage> stages = new LinkedHashMap<>();
         private final Map<String, String> edges = new LinkedHashMap<>();
         private final Map<String, ConditionalRouter> routers = new LinkedHashMap<>();
+        private final Map<String, List<String>> parallelEdges = new LinkedHashMap<>();
 
         public Builder entryPoint(String name) {
             this.entryPoint = name;
@@ -43,6 +50,15 @@ public class ChapterPipelineDefinition {
         /** 顺序边: stageA -> stageB */
         public Builder edge(String from, String to) {
             edges.put(from, to);
+            return this;
+        }
+
+        /**
+         * 并行边: from 完成后，parallel 列表中的阶段并发执行。
+         * 全部完成后走 from 的普通边（edges）到下一阶段。
+         */
+        public Builder parallelEdge(String from, List<String> parallel) {
+            parallelEdges.put(from, parallel);
             return this;
         }
 
@@ -61,6 +77,7 @@ public class ChapterPipelineDefinition {
             def.stages.putAll(this.stages);
             def.edges.putAll(this.edges);
             def.routers.putAll(this.routers);
+            def.parallelEdges.putAll(this.parallelEdges);
             return def;
         }
     }

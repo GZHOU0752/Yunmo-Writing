@@ -17,6 +17,10 @@
     <dependencies>
         <dependency>
             <groupId>com.yunmo</groupId>
+            <artifactId>yunmo-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yunmo</groupId>
             <artifactId>yunmo-llm</artifactId>
         </dependency>
         <dependency>

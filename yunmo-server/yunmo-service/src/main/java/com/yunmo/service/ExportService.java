@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 多格式导出服务 — 替代 Python export_service.py
@@ -23,33 +25,6 @@ public class ExportService {
     public ExportService(NovelRepository novelRepo, ChapterRepository chapterRepo) {
         this.novelRepo = novelRepo;
         this.chapterRepo = chapterRepo;
-    }
-
-    /** 导出 Markdown */
-    public String exportMarkdown(String novelId) {
-        Novel novel = novelRepo.findById(novelId).orElseThrow();
-        List<Chapter> chapters = chapterRepo.findByNovelIdOrderByChapterNumberAsc(novelId);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("# ").append(novel.getTitle()).append("\n\n");
-        sb.append("> 类型: ").append(novel.getGenreId())
-                .append(" | 总字数: ").append(novel.getWordCount()).append("\n\n");
-        sb.append("---\n\n");
-
-        for (var ch : chapters) {
-            sb.append("## 第").append(ch.getChapterNumber()).append("章");
-            if (ch.getTitle() != null && !ch.getTitle().isEmpty()) {
-                sb.append(" ").append(ch.getTitle());
-            }
-            sb.append("\n\n");
-            if (ch.getContent() != null) {
-                sb.append(ch.getContent()).append("\n\n");
-            }
-            sb.append("---\n\n");
-        }
-
-        log.info("导出 Markdown: {} -> {} 字", novel.getTitle(), sb.length());
-        return sb.toString();
     }
 
     /** 导出纯文本 */
@@ -68,7 +43,7 @@ public class ExportService {
             }
             sb.append("\n\n");
             if (ch.getContent() != null) {
-                sb.append(ch.getContent()).append("\n\n");
+                sb.append(htmlToPlainText(ch.getContent())).append("\n\n");
             }
         }
 
@@ -126,5 +101,59 @@ public class ExportService {
                    .replace(">", "&gt;")
                    .replace("\"", "&quot;")
                    .replace("'", "&#39;");
+    }
+
+    /** HTML → 纯文本（用于 TXT 导出） */
+    private String htmlToPlainText(String html) {
+        if (html == null) return "";
+        // 1. 块级元素换行
+        String text = html
+            .replaceAll("(?i)<br\\s*/?>", "\n")
+            .replaceAll("(?i)</p>", "\n\n")
+            .replaceAll("(?i)</div>", "\n")
+            .replaceAll("(?i)</h[1-6]>", "\n\n")
+            .replaceAll("(?i)</li>", "\n")
+            .replaceAll("(?i)</blockquote>", "\n");
+        // 2. 去除所有 HTML 标签
+        text = text.replaceAll("<[^>]+>", "");
+        // 3. 解码数字实体 (&#12288; → 全角空格)
+        Matcher m = Pattern.compile("&#(\\d+);").matcher(text);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            int code = Integer.parseInt(m.group(1));
+            m.appendReplacement(sb, String.valueOf((char) code));
+        }
+        m.appendTail(sb);
+        text = sb.toString();
+        // 4. 解码命名实体（&amp; 必须最先，否则会破坏后续编码）
+        text = text.replace("&amp;", "&")
+                   .replace("&nbsp;", " ")
+                   .replace("&lt;", "<")
+                   .replace("&gt;", ">")
+                   .replace("&quot;", "\"")
+                   .replace("&#39;", "'");
+        // 5. 清理多余空行
+        text = text.replaceAll("\n{3,}", "\n\n");
+        return text.trim();
+    }
+
+    /** 解码 HTML 实体 */
+    private String decodeEntities(String text) {
+        if (text == null) return "";
+        Matcher dm = Pattern.compile("&#(\\d+);").matcher(text);
+        StringBuffer dsb = new StringBuffer();
+        while (dm.find()) {
+            int code = Integer.parseInt(dm.group(1));
+            dm.appendReplacement(dsb, String.valueOf((char) code));
+        }
+        dm.appendTail(dsb);
+        text = dsb.toString();
+        text = text.replace("&amp;", "&")
+                   .replace("&nbsp;", " ")
+                   .replace("&lt;", "<")
+                   .replace("&gt;", ">")
+                   .replace("&quot;", "\"")
+                   .replace("&#39;", "'");
+        return text;
     }
 }

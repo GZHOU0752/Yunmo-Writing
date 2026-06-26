@@ -2,6 +2,7 @@ package com.yunmo.api.controller;
 
 import com.yunmo.domain.entity.OutlineNode;
 import com.yunmo.service.outline.OutlineCompletionService;
+import com.yunmo.service.outline.OutlineDiscussionService;
 import com.yunmo.service.outline.OutlineNodeService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +21,14 @@ public class OutlineController {
 
     private final OutlineNodeService outlineNodeService;
     private final OutlineCompletionService completionService;
+    private final OutlineDiscussionService discussionService;
 
     public OutlineController(OutlineNodeService outlineNodeService,
-                              OutlineCompletionService completionService) {
+                              OutlineCompletionService completionService,
+                              OutlineDiscussionService discussionService) {
         this.outlineNodeService = outlineNodeService;
         this.completionService = completionService;
+        this.discussionService = discussionService;
     }
 
     /** 获取完整大纲树 */
@@ -121,6 +125,39 @@ public class OutlineController {
             completionService.completeStream(novelId, id, childLevel, count)
                 .map(chunk -> "data: " + chunk + "\n\n"),
             // 结束标记
+            Flux.just("event: done\ndata: {}\n\n")
+        );
+    }
+
+    /** AI 对话式大纲讨论（SSE 流式） */
+    @PostMapping(value = "/discuss", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> discuss(@PathVariable String novelId,
+                                 @RequestBody Map<String, Object> body) {
+        String nodeId = (String) body.get("nodeId");
+        String message = (String) body.get("message");
+        if (message == null || message.isBlank()) {
+            return Flux.just("data: {\"error\":\"消息不能为空\"}\n\n");
+        }
+        return Flux.concat(
+            Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
+            discussionService.discuss(novelId, nodeId, message)
+                .map(chunk -> "data: " + chunk + "\n\n"),
+            Flux.just("event: done\ndata: {}\n\n")
+        );
+    }
+
+    /**
+     * 引导式章节规划 — AI主动提问，用户回答后生成章节卡
+     */
+    @PostMapping(value = "/plan-chapter/{chapterNumber}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> planChapter(@PathVariable String novelId,
+                                     @PathVariable int chapterNumber,
+                                     @RequestBody Map<String, Object> body) {
+        String answers = (String) body.getOrDefault("answers", "");
+        return Flux.concat(
+            Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
+            discussionService.planChapter(novelId, chapterNumber, answers.isEmpty() ? null : answers)
+                .map(chunk -> "data: " + chunk + "\n\n"),
             Flux.just("event: done\ndata: {}\n\n")
         );
     }

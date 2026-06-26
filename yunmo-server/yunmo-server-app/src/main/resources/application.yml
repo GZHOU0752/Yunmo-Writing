@@ -7,14 +7,10 @@ spring:
   codec:
     max-in-memory-size: 100MB
   datasource:
-    url: jdbc:h2:file:./data/novelwriter;MODE=MySQL;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:yunmo}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USER:yunmo}
+    password: ${MYSQL_PASSWORD:yunmo123}
   jpa:
     hibernate:
       ddl-auto: update
@@ -22,8 +18,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
   liquibase:
+    enabled: false
+  flyway:
     enabled: false
   data:
     redis:
@@ -45,23 +43,36 @@ management:
 
 yunmo:
   app:
-    secret-key: ${MOLU_SECRET_KEY:change-me-in-production}
+    secret-key: ${MOLU_SECRET_KEY}
     chroma-url: ${CHROMA_URL:http://localhost:8000}
     redis-url: ${REDIS_URL:redis://localhost:6379/0}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
     default-user-id: "00000000-0000-0000-0000-000000000000"
     max-retries: 3
     context-token-budget: 46000
+  pipeline:
+    # 管线阶段顺序（按此顺序执行）。注释掉则按插件优先级自动排序。
+    stages:
+      - assemble_context
+      - debate_outline
+      - preflight
+      - pleasure_beat
+      - write_chapter
+      - polish_chapter
+      - adversarial_edit
+    # 禁用的阶段（不会在管线中执行）
+    disabled: []
   llm:
     deepseek:
-      api-key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
+      api-key: ${DEEPSEEK_API_KEY}
       base-url: ${DEEPSEEK_API_BASE:https://api.deepseek.com}
       model: deepseek-v4-pro
     kimi:
-      api-key: ${KIMI_API_KEY:your-kimi-api-key}
+      api-key: ${KIMI_API_KEY}
       base-url: ${KIMI_API_BASE:https://api.moonshot.cn/v1}
-      model: moonshot-v1-8k
+      model: kimi-k2-0719
     qwen:
-      api-key: ${QWEN_API_KEY:your-qwen-api-key}
+      api-key: ${QWEN_API_KEY}
       base-url: ${QWEN_API_BASE:https://dashscope.aliyuncs.com/compatible-mode/v1}
       model: qwen-plus
 

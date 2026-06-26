@@ -10,4 +10,5 @@ import java.util.List;
 public interface CharacterRepository extends JpaRepository<Character, String> {
     List<Character> findByNovelIdOrderByImportanceDesc(String novelId);
     List<Character> findByNovelIdAndIsDeadFalse(String novelId);
+    List<Character> findByNovelIdAndIsDeadTrue(String novelId);
 }

@@ -95,6 +95,47 @@ const verdictLabels = {
 
 /** 是否展示去AI味详情 */
 const deAiResult = computed(() => props.report?.deaiResult || null)
+
+/** Anti-AI 规则检测报告 */
+const antiAI = computed(() => props.report?.anti_ai_report || null)
+
+/** 三层门禁结果 */
+const guardSummary = computed(() => props.report?.guard_results || null)
+const guardTiers = computed(() => {
+  const gr = props.report?.guard_results
+  if (!gr) return []
+  // 兼容两种格式：直接数组 或 { results: [...] }
+  if (Array.isArray(gr)) return gr
+  return gr.results || []
+})
+
+/** 门禁总分（来自 GuardOrchestrator 的综合质量评分） */
+const guardQualityScore = computed(() => {
+  const gr = props.report?.guard_results
+  if (!gr || Array.isArray(gr)) return null
+  return gr.qualityScore
+})
+
+const guardFinalStatus = computed(() => {
+  const gr = props.report?.guard_results
+  if (!gr || Array.isArray(gr)) return null
+  return gr.finalStatus
+})
+
+const guardWarningCount = computed(() => {
+  const gr = props.report?.guard_results
+  if (!gr || Array.isArray(gr)) return 0
+  return gr.warningCount || 0
+})
+
+/** 修复指引 — 从 adversarial_edit 数据中提取 */
+const fixGuidance = computed(() => {
+  const raw = props.report?.inspectorReport
+  if (raw?.fix_guidance && Array.isArray(raw.fix_guidance)) return raw.fix_guidance
+  if (props.report?.fix_guidance && Array.isArray(props.report.fix_guidance)) return props.report.fix_guidance
+  if (props.report?.deaiResult?.fix_guidance && Array.isArray(props.report.deaiResult.fix_guidance)) return props.report.deaiResult.fix_guidance
+  return []
+})
 </script>
 
 <template>
@@ -103,13 +144,27 @@ const deAiResult = computed(() => props.report?.deaiResult || null)
 
     <!-- 总分与判定 -->
     <div class="flex items-center gap-3 mb-4">
-      <div class="text-2xl font-bold" :style="{ color: (report.score || 0) >= 70 ? 'var(--yunmo-green)' : 'var(--yunmo-red)' }">
+      <div class="text-2xl font-bold" :style="{ color: (report.score || 0) >= 7 ? 'var(--yunmo-green)' : 'var(--yunmo-red)' }">
         {{ report.score || 0 }}
       </div>
-      <div class="text-caption text-xs">/ 100</div>
+      <div class="text-caption text-xs">/ 10</div>
       <a-tag :color="verdictLabels[report.verdict]?.color || 'default'" class="ml-auto">
         {{ verdictLabels[report.verdict]?.text || report.verdict }}
       </a-tag>
+    </div>
+
+    <!-- 门禁综合评分（来自 GuardOrchestrator） -->
+    <div v-if="guardSummary" class="flex items-center gap-2 mb-3 p-2 rounded text-xs" :style="{background: guardFinalStatus === 'PASS' ? 'rgba(90,122,90,0.08)' : guardFinalStatus === 'WARNING' ? 'rgba(184,149,108,0.08)' : 'rgba(184,58,58,0.08)'}">
+      <span class="font-semibold" style="color:var(--yunmo-accent)">门禁总评</span>
+      <span class="font-tabular" :style="{color: guardQualityScore >= 7 ? 'var(--yunmo-green)' : guardQualityScore >= 5 ? 'var(--yunmo-amber)' : 'var(--yunmo-red)'}">
+        {{ guardQualityScore?.toFixed(1) || '—' }} / 10
+      </span>
+      <span class="font-tabular" :style="{color: guardFinalStatus === 'PASS' ? 'var(--yunmo-green)' : guardFinalStatus === 'WARNING' ? 'var(--yunmo-amber)' : 'var(--yunmo-red)'}">
+        {{ guardFinalStatus === 'PASS' ? '通过' : guardFinalStatus === 'WARNING' ? '提醒' : '拦截' }}
+      </span>
+      <span v-if="guardWarningCount > 0" class="text-[10px]" style="color:var(--yunmo-text-caption)">
+        {{ guardWarningCount }} 条提醒
+      </span>
     </div>
 
     <!-- 去AI味检测结果 -->
@@ -150,6 +205,62 @@ const deAiResult = computed(() => props.report?.deaiResult || null)
       </a-collapse-panel>
     </a-collapse>
 
+    <!-- Anti-AI 规则检测（零 LLM 成本） -->
+    <div v-if="antiAI" class="mb-3">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semibold" :style="{color: antiAI.passed ? 'var(--yunmo-green)' : 'var(--yunmo-amber)'}">
+          Anti-AI 检测
+        </span>
+        <span class="font-tabular text-xs" :style="{color: antiAI.aiScore >= 30 ? 'var(--yunmo-red)' : antiAI.aiScore >= 15 ? 'var(--yunmo-amber)' : 'var(--yunmo-green)'}">
+          {{ antiAI.aiScore?.toFixed(0) || 0 }} 分
+        </span>
+        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">
+          {{ antiAI.passed ? '通过' : '发现 ' + (antiAI.totalFindings || 0) + ' 处可疑' }}
+        </span>
+      </div>
+      <div v-if="antiAI.findings?.length > 0" class="space-y-1">
+        <div
+          v-for="(f, i) in antiAI.findings"
+          :key="i"
+          class="text-xs p-1.5 rounded flex items-start gap-2"
+          :style="{background: 'var(--yunmo-paper-dark)', borderLeft: '2px solid ' + (f.confidence >= 0.7 ? 'var(--yunmo-red)' : 'var(--yunmo-amber)')}"
+        >
+          <span class="shrink-0 font-tabular text-[10px]" style="color:var(--yunmo-text-caption)">
+            {{ f.confidence >= 0.7 ? '⚠️' : '💡' }}
+          </span>
+          <div class="min-w-0">
+            <span style="color:var(--yunmo-text-primary)">{{ f.description }}</span>
+            <div v-if="f.suggestion" class="text-[11px] mt-0.5" style="color:var(--yunmo-text-caption)">{{ f.suggestion }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 三层门禁状态 -->
+    <div v-if="guardTiers?.length > 0" class="mb-3">
+      <div class="text-xs font-semibold mb-1.5" style="color:var(--yunmo-accent)">门禁检查</div>
+      <div class="space-y-1">
+        <div
+          v-for="(g, i) in guardTiers"
+          :key="i"
+          class="flex items-center gap-2 text-xs py-0.5"
+        >
+          <span class="w-12 text-[10px] font-tabular" style="color:var(--yunmo-text-caption)">
+            L{{ g.level }}
+          </span>
+          <span class="flex-1 truncate">{{ g.guardName }}</span>
+          <span
+            class="font-tabular text-[11px]"
+            :style="{
+              color: g.status === 'PASS' ? 'var(--yunmo-green)' : g.status === 'WARNING' ? 'var(--yunmo-amber)' : 'var(--yunmo-red)'
+            }"
+          >
+            {{ g.status === 'PASS' ? '通过' : g.status === 'WARNING' ? '提醒' : '未过' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Guardian 类型检查 -->
     <div v-if="violations.length > 0 || guardianPassed === true" class="mb-2">
       <div class="flex items-center gap-2 mb-2">
@@ -179,5 +290,34 @@ const deAiResult = computed(() => props.report?.deaiResult || null)
         <pre class="text-xs whitespace-pre-wrap text-[var(--yunmo-text-caption)]">{{ JSON.stringify(report.guardianReport, null, 2) }}</pre>
       </a-collapse-panel>
     </a-collapse>
+
+    <!-- 修复指引 -->
+    <div v-if="fixGuidance.length > 0" class="mb-2">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semibold" style="color:var(--yunmo-amber)">🔧 修复指引</span>
+        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">
+          {{ fixGuidance.filter(f => f.level === 'severe').length }} 项需重点修复
+        </span>
+      </div>
+      <div class="space-y-1.5">
+        <div
+          v-for="(fix, i) in fixGuidance"
+          :key="i"
+          class="text-xs p-2 rounded flex items-start gap-2"
+          :style="{
+            background: fix.level === 'severe' ? 'rgba(184,58,58,0.08)' : 'var(--yunmo-paper-dark)',
+            borderLeft: '3px solid ' + (fix.level === 'severe' ? 'var(--yunmo-red)' : 'var(--yunmo-amber)')
+          }"
+        >
+          <span class="flex-shrink-0 text-sm" :style="{color: fix.level === 'severe' ? 'var(--yunmo-red)' : 'var(--yunmo-amber)'}">
+            {{ fix.level === 'severe' ? '⚠️' : '💡' }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold mb-0.5" style="color:var(--yunmo-text-primary)">{{ fix.dimension }}</div>
+            <div class="text-caption" style="white-space:pre-wrap;word-break:break-all">{{ fix.hint }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

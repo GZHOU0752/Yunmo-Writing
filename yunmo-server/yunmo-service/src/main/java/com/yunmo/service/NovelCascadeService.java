@@ -18,14 +18,10 @@ public class NovelCascadeService {
     private final ChapterRepository chapterRepo;
     private final ChapterVersionRepository versionRepo;
     private final CharacterRepository characterRepo;
-    private final CharacterRelationshipRepository charRelRepo;
     private final WorldElementRepository worldRepo;
-    private final OrganizationRepository orgRepo;
     private final ForeshadowRepository foreshadowRepo;
-    private final CareerRepository careerRepo;
     private final MemoryRuleRepository memoryRepo;
     private final OutlineNodeRepository outlineRepo;
-    private final AnalysisReportRepository analysisRepo;
     private final ContextSnapshotRepository snapshotRepo;
     private final ReferenceMaterialRepository refMaterialRepo;
     private final VectorStoreService vectorStore;
@@ -34,14 +30,10 @@ public class NovelCascadeService {
     public NovelCascadeService(ChapterRepository chapterRepo,
                                ChapterVersionRepository versionRepo,
                                CharacterRepository characterRepo,
-                               CharacterRelationshipRepository charRelRepo,
                                WorldElementRepository worldRepo,
-                               OrganizationRepository orgRepo,
                                ForeshadowRepository foreshadowRepo,
-                               CareerRepository careerRepo,
                                MemoryRuleRepository memoryRepo,
                                OutlineNodeRepository outlineRepo,
-                               AnalysisReportRepository analysisRepo,
                                ContextSnapshotRepository snapshotRepo,
                                ReferenceMaterialRepository refMaterialRepo,
                                VectorStoreService vectorStore,
@@ -49,14 +41,10 @@ public class NovelCascadeService {
         this.chapterRepo = chapterRepo;
         this.versionRepo = versionRepo;
         this.characterRepo = characterRepo;
-        this.charRelRepo = charRelRepo;
         this.worldRepo = worldRepo;
-        this.orgRepo = orgRepo;
         this.foreshadowRepo = foreshadowRepo;
-        this.careerRepo = careerRepo;
         this.memoryRepo = memoryRepo;
         this.outlineRepo = outlineRepo;
-        this.analysisRepo = analysisRepo;
         this.snapshotRepo = snapshotRepo;
         this.refMaterialRepo = refMaterialRepo;
         this.vectorStore = vectorStore;
@@ -98,47 +86,27 @@ public class NovelCascadeService {
         outlineRepo.deleteAll(outlines);
         count += outlines.size();
 
-        // 5. 角色关系（先删，关系依赖角色）
-        var charRels = charRelRepo.findByNovelId(novelId);
-        charRelRepo.deleteAll(charRels);
-        count += charRels.size();
-
-        // 6. 角色
+        // 5. 角色
         var chars = characterRepo.findByNovelIdOrderByImportanceDesc(novelId);
         characterRepo.deleteAll(chars);
         count += chars.size();
 
-        // 7. 世界观
+        // 6. 世界观
         var worlds = worldRepo.findByNovelId(novelId);
         worldRepo.deleteAll(worlds);
         count += worlds.size();
 
-        // 8. 组织
-        var orgs = orgRepo.findByNovelId(novelId);
-        orgRepo.deleteAll(orgs);
-        count += orgs.size();
-
-        // 9. 伏笔
+        // 7. 伏笔
         var fshadows = foreshadowRepo.findByNovelId(novelId);
         foreshadowRepo.deleteAll(fshadows);
         count += fshadows.size();
 
-        // 10. 职业
-        var careers = careerRepo.findByNovelId(novelId);
-        careerRepo.deleteAll(careers);
-        count += careers.size();
-
-        // 11. 记忆规则
+        // 8. 记忆规则
         var rules = memoryRepo.findByNovelIdOrderByPriorityDesc(novelId);
         memoryRepo.deleteAll(rules);
         count += rules.size();
 
-        // 12. 分析报告
-        var reports = analysisRepo.findByNovelIdOrderByCreatedAtDesc(novelId);
-        analysisRepo.deleteAll(reports);
-        count += reports.size();
-
-        // 13. 参考素材 + 向量
+        // 9. 参考素材 + 向量
         var refs = refMaterialRepo.findByNovelIdOrderByCreatedAtDesc(novelId);
         refMaterialRepo.deleteAll(refs);
         count += refs.size();

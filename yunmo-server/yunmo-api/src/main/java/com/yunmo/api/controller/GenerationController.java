@@ -2,7 +2,9 @@ package com.yunmo.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.domain.repository.NovelRepository;
+import com.yunmo.service.BatchGenerationService;
 import com.yunmo.service.ChapterGenerationService;
+import com.yunmo.service.CheckpointService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.codec.ServerSentEvent;
@@ -25,15 +27,21 @@ public class GenerationController {
     private static final Logger log = LoggerFactory.getLogger(GenerationController.class);
     private static final int MAX_CONCURRENT_GENERATIONS = 5;
     private final ChapterGenerationService generationService;
+    private final BatchGenerationService batchGenerationService;
     private final NovelRepository novelRepo;
+    private final CheckpointService checkpointService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     /** 并发生成计数器（键: novelId，值: 当前活跃生成数） */
     private final ConcurrentHashMap<String, AtomicInteger> activeGenerations = new ConcurrentHashMap<>();
 
     public GenerationController(ChapterGenerationService generationService,
-                                 NovelRepository novelRepo) {
+                                 BatchGenerationService batchGenerationService,
+                                 NovelRepository novelRepo,
+                                 CheckpointService checkpointService) {
         this.generationService = generationService;
+        this.batchGenerationService = batchGenerationService;
         this.novelRepo = novelRepo;
+        this.checkpointService = checkpointService;
     }
 
     /** 检查并占位一个并发槽位，返回 true 表示允许生成 */
@@ -110,8 +118,10 @@ public class GenerationController {
             generationService.generateStream(novelId, chapterNumber, genreConfig, finalUserFocus)
                 .map(event -> {
                     try {
+                        String ssePhase = "error".equals(event.phase())
+                            ? "error" : mapPhase(event.stageName());
                         String dataJson = objectMapper.writeValueAsString(Map.of(
-                                "phase", mapPhase(event.stageName()),
+                                "phase", ssePhase,
                                 "stage", event.stageName(),
                                 "data", event.output() != null ? event.output().data() : Collections.emptyMap()
                         ));
@@ -161,7 +171,112 @@ public class GenerationController {
                 ? (Map<String, Object>) body.getOrDefault("genre_config", Collections.emptyMap())
                 : Collections.emptyMap();
 
+        log.info("[生成] 非流式生成请求 — novel={}, chapter={}, focus={}", novelId, chapterNumber,
+                userFocus != null && !userFocus.isEmpty() ? userFocus.substring(0, Math.min(50, userFocus.length())) : "");
         return generationService.generate(novelId, chapterNumber, genreConfig, userFocus);
+    }
+
+    /**
+     * 批量生成 — SSE流式推送进度
+     * POST /api/v1/novels/{novelId}/chapters/batch-generate
+     */
+    @PostMapping("/{novelId}/chapters/batch-generate")
+    public Flux<ServerSentEvent<String>> batchGenerate(
+            @PathVariable String novelId,
+            @RequestBody Map<String, Object> body
+    ) {
+        @SuppressWarnings("unchecked")
+        List<Integer> chapterNumbers = (List<Integer>) body.getOrDefault("chapter_numbers", List.of());
+        String userFocus = (String) body.getOrDefault("focus", "");
+        String batchId = UUID.randomUUID().toString().substring(0, 8);
+
+        if (chapterNumbers.isEmpty()) {
+            return Flux.just(ServerSentEvent.<String>builder()
+                .data("{\"error\":\"chapter_numbers不能为空\"}")
+                .event("error")
+                .build());
+        }
+
+        // 排序确保按章节顺序生成
+        List<Integer> sorted = new ArrayList<>(chapterNumbers);
+        Collections.sort(sorted);
+
+        log.info("[BatchGen] 启动批量生成: novel={}, chapters={}, batch={}", novelId, sorted, batchId);
+
+        // 加载 genreConfig
+        return Mono.fromCallable(() -> {
+            var novel = novelRepo.findById(novelId).orElse(null);
+            Map<String, Object> genreConfig = Collections.emptyMap();
+            if (novel != null && novel.getGenreId() != null) {
+                genreConfig = GenreController.GENRES.stream()
+                    .filter(g -> g.get("id").equals(novel.getGenreId()))
+                    .findFirst()
+                    .map(g -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> config = (Map<String, Object>) g.get("genre_config");
+                        return config != null ? config : Collections.<String, Object>emptyMap();
+                    })
+                    .orElse(Collections.emptyMap());
+            }
+            return genreConfig;
+        }).subscribeOn(Schedulers.boundedElastic())
+        .flatMapMany(genreConfig ->
+            batchGenerationService.generateBatch(batchId, novelId, sorted, genreConfig, userFocus)
+                .map(event -> {
+                    try {
+                        String json = objectMapper.writeValueAsString(Map.of(
+                            "batch_id", event.batchId(),
+                            "status", event.status(),
+                            "current_chapter", event.currentChapter(),
+                            "total_chapters", event.totalChapters(),
+                            "chapter_title", event.chapterTitle(),
+                            "word_count", event.wordCount(),
+                            "total_words", event.totalWordsSoFar(),
+                            "elapsed_ms", event.elapsedMs(),
+                            "message", event.message()
+                        ));
+                        return ServerSentEvent.<String>builder()
+                            .data(json)
+                            .event(event.status())
+                            .build();
+                    } catch (Exception e) {
+                        return ServerSentEvent.<String>builder()
+                            .data("{\"status\":\"error\",\"message\":\"序列化失败\"}")
+                            .event("error")
+                            .build();
+                    }
+                })
+                .concatWith(Mono.just(ServerSentEvent.<String>builder()
+                    .data("{\"status\":\"stream_closed\",\"batch_id\":\"" + batchId + "\"}")
+                    .event("done")
+                    .build()))
+        );
+    }
+
+    /** 取消批量生成 */
+    @PostMapping("/{novelId}/chapters/batch-cancel/{batchId}")
+    public Mono<Map<String, Object>> cancelBatch(
+            @PathVariable String novelId,
+            @PathVariable String batchId
+    ) {
+        boolean cancelled = batchGenerationService.cancelBatch(batchId);
+        return Mono.just(Map.of(
+            "batch_id", batchId,
+            "cancelled", cancelled,
+            "message", cancelled ? "已取消" : "批次不存在或已完成"
+        ));
+    }
+
+    /** 清除断点 */
+    @DeleteMapping("/{novelId}/chapters/{chapterNumber}/checkpoint")
+    public Mono<Map<String, Object>> clearCheckpoint(@PathVariable String novelId,
+                                                      @PathVariable int chapterNumber) {
+        return Mono.fromCallable(() -> {
+            checkpointService.clear(novelId, chapterNumber);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", "ok");
+            return result;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
@@ -169,11 +284,13 @@ public class GenerationController {
      */
     private String mapPhase(String stageName) {
         return switch (stageName) {
-            case "assemble_context" -> "preflight";
-            case "preflight" -> "preflight";
+            case "assemble_context", "debate_outline" -> "preflight";
+            case "preflight", "pleasure_beat" -> "preflight";
+            case "checkpoint_found" -> "preflight";
             case "write_chapter" -> "writing";
-            case "review_chapter" -> "review";
+            case "polish_chapter", "adversarial_edit" -> "review";
             case "decide_verdict" -> "deciding";
+            case "save_chapter" -> "save";
             default -> stageName;
         };
     }

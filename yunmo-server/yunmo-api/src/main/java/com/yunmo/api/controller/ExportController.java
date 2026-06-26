@@ -24,18 +24,6 @@ public class ExportController {
         this.epubService = epubService;
     }
 
-    @GetMapping("/export/md")
-    public Mono<ResponseEntity<Resource>> exportMd(@PathVariable String novelId) {
-        return Mono.fromCallable(() -> {
-            String content = exportService.exportMarkdown(novelId);
-            String filename = URLEncoder.encode("novel.md", StandardCharsets.UTF_8);
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .body((Resource) new ByteArrayResource(content.getBytes(StandardCharsets.UTF_8)));
-        }).subscribeOn(Schedulers.boundedElastic());
-    }
-
     @GetMapping("/export/txt")
     public Mono<ResponseEntity<Resource>> exportTxt(@PathVariable String novelId) {
         return Mono.fromCallable(() -> {

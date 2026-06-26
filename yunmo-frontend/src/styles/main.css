@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+@import "tailwindcss";
 
 /* ============================================
    云墨 · 书房美学 (Study-Room Aesthetic)
@@ -25,9 +25,17 @@
   --yunmo-text-secondary: #4a3826;  /* 次级文字 */
   --yunmo-text-caption: #5c4a34;    /* 说明文字 */
   --yunmo-couplet: #140a02;         /* 对联浓墨 — 焦墨最深 */
+
+  /* Landing Page 渐变 */
+  --yunmo-hero-gradient-start: #f5efe0;
+  --yunmo-hero-gradient-mid: #ede4cf;
+  --yunmo-hero-gradient-end: #faf6ed;
 }
 
 /* ===== 基础 ===== */
+html {
+  scroll-behavior: smooth;
+}
 body {
   background: var(--yunmo-paper);
   color: var(--yunmo-ink);
@@ -35,22 +43,34 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ===== 宣纸肌理 ===== */
+/* ===== 键盘焦点环 ===== */
+*:focus-visible {
+  outline: 2px solid var(--yunmo-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+/* 编辑器区域不需要焦点环——书写时看到红框很突兀 */
+.ProseMirror:focus-visible,
+.ProseMirror *:focus-visible {
+  outline: none;
+}
+.ant-btn:focus-visible,
+.ant-input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--yunmo-accent);
+  outline-offset: 1px;
+}
+
+/* ===== 宣纸肌理 — 使用 SVG 噪声替代条纹（消除 AI repeating-linear-gradient slop） ===== */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.025;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(44, 36, 22, 0.06) 2px,
-      rgba(44, 36, 22, 0.06) 4px
-    );
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -63,25 +83,24 @@ body::before {
   font-weight: 400;
 }
 
-/* ===== 字体层级 ===== */
-h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
-h2 { font-size: clamp(1.25rem, 2.5vw, 1.5rem); font-weight: 700; text-wrap: balance; }
+/* ===== 字体层级 (比例 ≥1.25) ===== */
+h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { font-size: clamp(1.25rem, 2.5vw, 1.6rem);  font-weight: 700; text-wrap: balance; }
 h3 { font-size: 1.125rem; font-weight: 600; text-wrap: balance; }
-h4 { font-size: 1rem; font-weight: 600; }
+h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
 .text-body { font-size: 0.9375rem; line-height: 1.8; max-width: 70ch; }
 .text-caption { font-size: 0.8125rem; color: var(--yunmo-text-caption); }
 
-/* ===== 卡片 — 宣纸浮页，色差+微影区分层次（不用 border+shadow 鬼影组合） ===== */
+/* ===== 卡片 — 仅背景色区分层级，hover 才加阴影 ===== */
 .yunmo-card {
   background: var(--yunmo-paper-light);
-  border: 1px solid var(--yunmo-border);
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(31, 22, 12, 0.04);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  border-radius: 10px;
+  transition: background 0.3s cubic-bezier(0.16,1,0.3,1),
+              box-shadow 0.3s cubic-bezier(0.16,1,0.3,1),
+              transform 0.3s cubic-bezier(0.16,1,0.3,1);
 }
 .yunmo-card:hover {
-  border-color: var(--yunmo-accent-light);
-  box-shadow: 0 2px 12px rgba(31, 22, 12, 0.08);
+  box-shadow: 0 4px 16px rgba(31, 22, 12, 0.10), 0 1px 3px rgba(31, 22, 12, 0.04);
   transform: translateY(-1px);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -92,50 +111,56 @@ h4 { font-size: 1rem; font-weight: 600; }
 /* ===== 工具栏幽灵按钮 ===== */
 .toolbar-btn {
   color: var(--yunmo-text-caption);
-  padding: 2px 6px;
+  padding: 4px 8px;
   font-size: 0.8125rem;
-  border-radius: 3px;
-  transition: color 0.2s ease, background 0.2s ease, transform 0.1s ease;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
 }
 .toolbar-btn:hover {
   color: var(--yunmo-accent);
   background: rgba(139, 58, 58, 0.06);
+  border-color: rgba(139, 58, 58, 0.12);
 }
 .toolbar-btn:active {
   transform: scale(0.96);
 }
 
-/* ===== 自定义按钮 ===== */
+/* ===== 自定义按钮体系 ===== */
 .yunmo-btn {
   background: var(--yunmo-accent);
   color: #faf6ed;
   border: none;
-  border-radius: 4px;
-  padding: 8px 20px;
+  border-radius: 5px;
+  padding: 8px 22px;
   font-family: inherit;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
   letter-spacing: 0.02em;
+  box-shadow: 0 1px 4px rgba(139, 58, 58, 0.15);
 }
-.yunmo-btn:hover { background: var(--yunmo-accent-hover); }
-.yunmo-btn:disabled { background: #c4bfb2; color: #9a9588; cursor: not-allowed; }
+.yunmo-btn:hover { background: var(--yunmo-accent-hover); box-shadow: 0 2px 8px rgba(139, 58, 58, 0.25); }
+.yunmo-btn:active { transform: scale(0.97); }
+.yunmo-btn:disabled { background: #c4bfb2; color: #9a9588; box-shadow: none; cursor: not-allowed; }
 
 .yunmo-btn-outline {
   background: transparent;
   color: var(--yunmo-accent);
-  border: 1px solid var(--yunmo-accent);
-  border-radius: 4px;
-  padding: 7px 19px;
+  border: 1px solid var(--yunmo-border);
+  border-radius: 5px;
+  padding: 7px 20px;
   font-family: inherit;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
 }
 .yunmo-btn-outline:hover {
-  background: var(--yunmo-accent);
-  color: #faf6ed;
+  border-color: var(--yunmo-accent);
+  color: var(--yunmo-accent);
+  background: rgba(139, 58, 58, 0.04);
 }
+.yunmo-btn-outline:active { transform: scale(0.97); }
 
 /* ===== Ant Design 全局覆盖 ===== */
 /* 主色调 — 朱砂 */
@@ -192,8 +217,27 @@ h4 { font-size: 1rem; font-weight: 600; }
 .ant-input:focus,
 .ant-input-password:focus,
 .ant-input-focused {
-  border-color: var(--yunmo-accent);
-  box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1);
+  border-color: var(--yunmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1) !important;
+}
+
+/* 带前后缀的输入框（搜索框、带图标的输入） — ant-design-vue 会用 affix-wrapper 包裹 */
+.ant-input-affix-wrapper {
+  border-color: var(--yunmo-border);
+  border-radius: 4px;
+  background: var(--yunmo-paper-light);
+}
+.ant-input-affix-wrapper:hover { border-color: var(--yunmo-accent-light); }
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: var(--yunmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1) !important;
+}
+/* 内部 input 不要重复显示边框 */
+.ant-input-affix-wrapper .ant-input,
+.ant-input-affix-wrapper .ant-input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* 选择器 */
@@ -205,40 +249,41 @@ h4 { font-size: 1rem; font-weight: 600; }
   box-shadow: 0 0 0 2px rgba(139, 58, 58, 0.1) !important;
 }
 
-/* ===== Modal 弹窗 ===== */
+/* ===== Modal 弹窗 — 统一圆角+阴影 ===== */
 .ant-modal-content {
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--yunmo-paper-light);
+  box-shadow: 0 8px 32px rgba(31, 22, 12, 0.12);
 }
 .ant-modal-header {
   border-bottom: 1px solid var(--yunmo-border);
-  border-radius: 8px 8px 0 0;
+  border-radius: 10px 10px 0 0;
   background: transparent;
+  padding: 16px 20px;
 }
-.ant-modal-title {
-  color: var(--yunmo-ink);
-  font-weight: 600;
-}
+.ant-modal-title { color: var(--yunmo-ink); font-weight: 600; font-size: 1rem; }
 .ant-modal-close { color: var(--yunmo-text-caption); }
 .ant-modal-close:hover { color: var(--yunmo-ink); }
 .ant-modal-footer {
   border-top: 1px solid var(--yunmo-border);
   background: transparent;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 10px 10px;
+  padding: 12px 20px;
 }
-.ant-modal-mask { background: rgba(31, 22, 12, 0.35); }
+.ant-modal-mask { background: rgba(31, 22, 12, 0.4); }
 
-/* ===== Drawer 抽屉 ===== */
+/* ===== Drawer 抽屉 — 统一圆角 ===== */
 .ant-drawer-content {
   background: var(--yunmo-paper-light);
 }
 .ant-drawer-header {
   border-bottom: 1px solid var(--yunmo-border);
   background: transparent;
+  padding: 16px 20px;
 }
-.ant-drawer-title { color: var(--yunmo-ink); font-weight: 600; }
+.ant-drawer-title { color: var(--yunmo-ink); font-weight: 600; font-size: 0.9375rem; }
 .ant-drawer-body { background: transparent; }
-.ant-drawer-mask { background: rgba(31, 22, 12, 0.25); }
+.ant-drawer-mask { background: rgba(31, 22, 12, 0.3); }
 
 /* ===== Popconfirm 气泡确认 ===== */
 .ant-popover-inner {
@@ -335,28 +380,6 @@ h4 { font-size: 1rem; font-weight: 600; }
 .ant-radio-checked .ant-radio-inner::after { background: var(--yunmo-accent); }
 .ant-radio-wrapper:hover .ant-radio-inner { border-color: var(--yunmo-accent); }
 
-/* ===== Danger 按钮 ===== */
-.ant-btn-dangerous {
-  color: var(--yunmo-red);
-  border-color: var(--yunmo-red);
-  background: transparent;
-}
-.ant-btn-dangerous:hover,
-.ant-btn-dangerous:focus {
-  color: #faf6ed !important;
-  background: var(--yunmo-red) !important;
-  border-color: var(--yunmo-red) !important;
-}
-.ant-btn-dangerous.ant-btn-primary {
-  background: var(--yunmo-red);
-  border-color: var(--yunmo-red);
-  color: #faf6ed;
-}
-.ant-btn-dangerous.ant-btn-primary:hover {
-  background: #93362e;
-  border-color: #93362e;
-}
-
 /* ===== Badge ===== */
 .ant-badge-status-processing { background: var(--yunmo-accent-light); }
 .ant-badge-status-success { background: var(--yunmo-green); }
@@ -420,6 +443,341 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 /* ============================================
+   云墨 · 微交互与动画系统
+   设计方差=8(不对称) · 运动强度=6(流体CSS) · 视觉密度=4(日常模式)
+   ============================================ */
+
+/* ----- 呼吸脉冲 — 状态指示器 ----- */
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(0.96); }
+}
+.status-pulse {
+  animation: breathe 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-pulse { animation: none; }
+}
+
+/* ----- 骨架屏闪烁 — 内容加载中 ----- */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--yunmo-paper-dark) 25%,
+    var(--yunmo-paper-light) 50%,
+    var(--yunmo-paper-dark) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background: var(--yunmo-paper-dark); }
+}
+
+/* ----- 墨点涟漪 — 点击回馈 ----- */
+@keyframes inkRipple {
+  0%   { box-shadow: 0 0 0 0 rgba(139, 58, 58, 0.3); }
+  100% { box-shadow: 0 0 0 8px rgba(139, 58, 58, 0); }
+}
+.ink-ripple:active {
+  animation: inkRipple 0.6s ease-out;
+}
+
+/* ----- 宣纸浮入 — 卡片依次登场 ----- */
+@keyframes paperFloatIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.float-in {
+  animation: paperFloatIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ----- 笔锋渐现 — 文字淡入 ----- */
+@keyframes inkReveal {
+  from { opacity: 0; filter: blur(2px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.ink-reveal {
+  animation: inkReveal 0.6s ease-out both;
+}
+
+/* ----- 卷轴展开 — 水平延伸 ----- */
+@keyframes unrollHorizontal {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+.unroll {
+  animation: unrollHorizontal 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ===== 卡片倾斜透视 (CSS-only 3D tilt) — 鼠标跟随微倾斜 ===== */
+.tilt-card {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+.tilt-card:hover {
+  transform: translateY(-2px) rotateX(1deg) rotateY(-1deg);
+  box-shadow:
+    0 8px 30px rgba(31, 22, 12, 0.10),
+    0 2px 6px rgba(31, 22, 12, 0.05);
+}
+[data-theme="dark"] .tilt-card:hover {
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tilt-card:hover { transform: none; }
+}
+
+/* ===== 章节时间线 — 点状指示器，无连接线 ===== */
+.chapter-timeline {
+  position: relative;
+}
+.chapter-timeline-item {
+  position: relative;
+  padding-left: 16px;
+}
+.chapter-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yunmo-paper-dark);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chapter-timeline-item.active::before {
+  background: var(--yunmo-accent);
+  box-shadow: 0 0 0 4px rgba(139, 58, 58, 0.12);
+}
+.chapter-timeline-item:hover::before {
+  background: var(--yunmo-accent-light);
+}
+
+/* ===== 字数计数器 — 平滑数字过渡 ===== */
+.word-counter {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ===== 墨色光标跟随光晕 (CSS-only, 性能安全) ===== */
+.glow-hover {
+  position: relative;
+  overflow: hidden;
+}
+.glow-hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(139, 58, 58, 0.06),
+    transparent 40%
+  );
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.glow-hover:hover::after {
+  opacity: 1;
+}
+
+/* ===== 过渡工具类 ===== */
+.transition-spring {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.transition-fast {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===== 排版增强 ===== */
+.text-balance {
+  text-wrap: balance;
+}
+.text-pretty {
+  text-wrap: pretty;
+}
+.leading-relaxed-cn {
+  line-height: 1.9; /* 中文需要比英文更大的行高 */
+}
+.tracking-wide-cn {
+  letter-spacing: 0.05em;
+}
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 墨痕分割线 ===== */
+.ink-divider {
+  height: 1px;
+  border: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--yunmo-border) 20%,
+    var(--yunmo-accent-light) 50%,
+    var(--yunmo-border) 80%,
+    transparent 100%
+  );
+  margin: 0;
+}
+
+/* ===== 印章按钮 — 核心操作 ===== */
+.seal-btn {
+  position: relative;
+  background: var(--yunmo-accent);
+  color: #faf6ed;
+  border: none;
+  border-radius: 3px;
+  padding: 10px 28px;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  /* 印章微旋转 + 微纹理 */
+  transform: rotate(-0.3deg);
+  box-shadow:
+    0 2px 8px rgba(139, 58, 58, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.seal-btn:hover {
+  transform: rotate(0deg) scale(1.02);
+  box-shadow:
+    0 4px 16px rgba(139, 58, 58, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.seal-btn:active {
+  transform: rotate(0deg) scale(0.97);
+  box-shadow: 0 1px 4px rgba(139, 58, 58, 0.15);
+  transition: all 0.1s ease;
+}
+.seal-btn:disabled {
+  background: #c4bfb2;
+  color: #9a9588;
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+[data-theme="dark"] .seal-btn {
+  box-shadow:
+    0 2px 8px rgba(201, 105, 90, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .seal-btn:hover {
+  box-shadow:
+    0 4px 16px rgba(201, 105, 90, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .seal-btn { transform: none; }
+  .seal-btn:hover { transform: none; }
+  .seal-btn:active { transform: none; }
+}
+
+/* ===== 阅读模式 — 仿古书排版 ===== */
+.reader-mode {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  line-height: 2.2;
+  letter-spacing: 0.02em;
+  text-align: justify;
+  hyphens: auto;
+  word-break: break-all;
+}
+.reader-mode p {
+  text-indent: 2em;
+  margin-bottom: 0;
+}
+.reader-mode h1 {
+  font-family: "Ma Shan Zheng", "Noto Serif SC", serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  text-align: center;
+  letter-spacing: 0.12em;
+  margin-bottom: 2.5rem;
+  text-indent: 0;
+}
+/* 章节分隔符 — 墨点 */
+.reader-mode hr {
+  border: none;
+  text-align: center;
+  margin: 2rem 0;
+}
+.reader-mode hr::after {
+  content: "◇";
+  font-size: 0.75rem;
+  color: var(--yunmo-accent-light);
+  opacity: 0.4;
+}
+
+/* ===== 空状态符纸 ===== */
+.empty-talisman {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(139, 58, 58, 0.04), transparent 70%);
+  transition: background 0.4s ease;
+}
+.empty-talisman:hover {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(139, 58, 58, 0.08), transparent 70%);
+}
+.empty-talisman .talisman-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.4;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.empty-talisman:hover .talisman-icon {
+  opacity: 0.65;
+  transform: translateY(-2px);
+}
+
+/* ===== 内联通知条 ===== */
+.inline-notice {
+  background: var(--yunmo-paper-dark);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  color: var(--yunmo-text-secondary);
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(184, 150, 74, 0.15);
+}
+
+/* ===== 毛玻璃面板 — 仅模糊，无边框阴影组合 ===== */
+.glass-panel {
+  background: rgba(250, 246, 237, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px;
+}
+[data-theme="dark"] .glass-panel {
+  background: rgba(37, 32, 24, 0.85);
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* ============================================
    墨夜 · 暗色模式 (Ink Night)
    材质: 陈檀木 / 暖黄光 / 泥金点 / 深砚底
    ============================================ */
@@ -438,8 +796,8 @@ h4 { font-size: 1rem; font-weight: 600; }
   --yunmo-gold: #c4a46c;             /* 泥金暖 */
   --yunmo-amber: #c4a06c;            /* 琥珀暖 */
 
-  --yunmo-text-secondary: #b0a090;   /* 次级文字 */
-  --yunmo-text-caption: #8a7a6a;     /* 说明文字 */
+  --yunmo-text-secondary: #bfb09a;   /* 次级文字 — 提亮 10% */
+  --yunmo-text-caption: #9a8a7a;     /* 说明文字 — 提亮 10% */
   --yunmo-couplet: #e8ddd0;          /* 焦墨反色 */
 
   --ant-primary-1: #252018;
@@ -452,22 +810,13 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 [data-theme="dark"] body::before {
-  opacity: 0.03;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(180, 160, 140, 0.04) 2px,
-      rgba(180, 160, 140, 0.04) 4px
-    );
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
 }
 
-[data-theme="dark"] .yunmo-card {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-}
 [data-theme="dark"] .yunmo-card:hover {
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="dark"] .toolbar-btn:hover {
@@ -486,7 +835,23 @@ h4 { font-size: 1rem; font-weight: 600; }
 [data-theme="dark"] .ant-input:focus,
 [data-theme="dark"] .ant-input-password:focus,
 [data-theme="dark"] .ant-input-focused {
-  box-shadow: 0 0 0 2px rgba(201, 105, 90, 0.15);
+  border-color: var(--yunmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(201, 105, 90, 0.15) !important;
+}
+
+[data-theme="dark"] .ant-input-affix-wrapper {
+  background: var(--yunmo-paper-dark);
+  border-color: var(--yunmo-border);
+}
+[data-theme="dark"] .ant-input-affix-wrapper:focus,
+[data-theme="dark"] .ant-input-affix-wrapper-focused {
+  border-color: var(--yunmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(201, 105, 90, 0.15) !important;
+}
+[data-theme="dark"] .ant-input-affix-wrapper .ant-input,
+[data-theme="dark"] .ant-input-affix-wrapper .ant-input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 [data-theme="dark"] .ant-modal-content,
@@ -528,6 +893,23 @@ h4 { font-size: 1rem; font-weight: 600; }
 [data-theme="dark"] .yunmo-btn:disabled {
   background: #3a3028;
   color: #6a5a4a;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .seal-btn {
+  box-shadow: 0 2px 8px rgba(201, 105, 90, 0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+[data-theme="dark"] .seal-btn:hover {
+  box-shadow: 0 4px 16px rgba(201, 105, 90, 0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+[data-theme="dark"] .ant-btn-default {
+  background: var(--yunmo-paper-dark);
+  border-color: var(--yunmo-border);
+  color: var(--yunmo-ink);
+}
+[data-theme="dark"] .ant-btn-default:hover {
+  border-color: var(--yunmo-accent);
+  color: var(--yunmo-accent) !important;
 }
 
 /* 暗色下 Ant Design 补充修正 */
@@ -551,4 +933,496 @@ h4 { font-size: 1rem; font-weight: 600; }
 
 [data-theme="dark"] .ant-select-selection-placeholder {
   color: #6a5a4a;
+}
+
+/* ============================================
+   云墨 · 书房精修 (Premium Refinements)
+   ============================================ */
+
+/* ----- 卡片幻影：轻量级卡片，无边框，hover 浮起 ----- */
+.yunmo-card-ghost {
+  background: var(--yunmo-paper-light);
+  border-radius: 8px;
+  transition: box-shadow 0.35s cubic-bezier(0.16,1,0.3,1),
+              transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.yunmo-card-ghost:hover {
+  box-shadow: 0 4px 16px rgba(31,22,12,0.06);
+  transform: translateY(-1px);
+}
+
+/* ----- 留白呼吸区 ----- */
+.section-gap {
+  margin-bottom: 2rem;
+}
+.section-gap-lg {
+  margin-bottom: 3rem;
+}
+
+/* ----- 视觉节奏分隔 ----- */
+.rule-silk {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--yunmo-border) 20%,
+    var(--yunmo-border) 80%,
+    transparent
+  );
+  margin: 1.5rem 0;
+}
+
+/* ----- 空状态 · 砚台待墨 ----- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.35;
+  color: var(--yunmo-accent);
+}
+.empty-state-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--yunmo-ink);
+  margin-bottom: 0.5rem;
+}
+.empty-state-desc {
+  font-size: 0.875rem;
+  color: var(--yunmo-text-caption);
+  max-width: 28ch;
+  line-height: 1.8;
+}
+
+/* ----- 呼吸脉冲（仅状态指示器，非装饰） ----- */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.breathe {
+  animation: breathe 2.5s ease-in-out infinite;
+}
+
+/* ----- 渐进入场（列表交错） ----- */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.card-enter {
+  animation: cardEnter 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+/* ----- 文本行宽限制（最优阅读体验） ----- */
+.measure-readable {
+  max-width: 65ch;
+}
+.measure-narrow {
+  max-width: 45ch;
+}
+
+/* ----- 抗锯齿增强（大标题用） ----- */
+.antialiased-title {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ----- 按钮按压反馈 ----- */
+.yunmo-btn:active,
+.seal-btn:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* ----- 边界光：hover 时仅背景微亮，不使用边框 + 阴影组合 ----- */
+.glow-border {
+  transition: background 0.3s ease;
+}
+.glow-border:hover {
+  background: rgba(139, 58, 58, 0.04);
+}
+
+/* ----- 小说进度条 ----- */
+.novel-progress {
+  height: 3px;
+  background: var(--yunmo-paper-dark);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.novel-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ----- Dashboard 筛选标签 ----- */
+.filter-tag {
+  padding: 4px 14px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  border: 1px solid var(--yunmo-border);
+  background: transparent;
+  color: var(--yunmo-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.filter-tag:hover {
+  border-color: var(--yunmo-accent-light);
+  color: var(--yunmo-accent);
+}
+.filter-tag.active {
+  background: var(--yunmo-accent);
+  color: var(--yunmo-paper-light);
+  border-color: var(--yunmo-accent);
+}
+.filter-tag.active:hover {
+  color: var(--yunmo-paper-light);
+}
+
+/* ============================================
+   云墨 · 写作工作区精修
+   ============================================ */
+
+/* ----- 专注模式 ----- */
+.focus-mode .sidebar-left,
+.focus-mode .sidebar-right {
+  width: 0 !important;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  opacity: 0;
+}
+
+/* ----- 编辑器纸张阴影 ----- */
+.editor-page {
+  box-shadow:
+    0 1px 3px rgba(31, 22, 12, 0.04),
+    0 4px 12px rgba(31, 22, 12, 0.02),
+    0 0 0 1px rgba(212, 201, 181, 0.3);
+  border-radius: 6px;
+  background: var(--yunmo-paper-light);
+  min-height: 600px;
+}
+[data-theme="dark"] .editor-page {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(58, 48, 40, 0.5);
+}
+
+/* ----- 可折叠面板头部 ----- */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+.collapsible-header:hover {
+  opacity: 0.75;
+}
+
+/* ----- 小说设定 Tab 导航 ----- */
+.setup-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--yunmo-text-secondary);
+  transition: all 0.2s ease;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  width: 100%;
+  border-radius: 6px;
+  margin: 2px 8px;
+  width: calc(100% - 16px);
+}
+.setup-tab-item:hover {
+  background: rgba(139, 58, 58, 0.06);
+  color: var(--yunmo-text-secondary);
+}
+.setup-tab-item.active {
+  color: var(--yunmo-paper-light);
+  font-weight: 600;
+  background: var(--yunmo-accent);
+}
+.setup-tab-item.completed .tab-number,
+.setup-tab-item.completed span:first-child {
+  background: var(--yunmo-green);
+  border-color: var(--yunmo-green);
+  color: #fff;
+}
+
+/* ============================================
+   云墨 · Landing Page 专属样式
+   ============================================ */
+
+/* ----- Hero 区水墨渐变背景 ----- */
+.hero-ink-bg {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    160deg,
+    var(--yunmo-hero-gradient-start) 0%,
+    var(--yunmo-hero-gradient-mid) 45%,
+    var(--yunmo-hero-gradient-end) 100%
+  );
+}
+.hero-ink-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 70% 50% at 65% 35%,
+    rgba(31, 22, 12, 0.05),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.hero-ink-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 50% 40% at 25% 60%,
+    rgba(139, 58, 58, 0.03),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ----- 墨粒子动画 ----- */
+@keyframes inkParticleFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0.15;
+  }
+  25% {
+    transform: translateY(-12px) translateX(6px) scale(1.1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateY(-6px) translateX(-4px) scale(0.95);
+    opacity: 0.18;
+  }
+  75% {
+    transform: translateY(-18px) translateX(8px) scale(1.05);
+    opacity: 0.22;
+  }
+}
+.ink-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(31,22,12,0.08), transparent 70%);
+  animation: inkParticleFloat 8s ease-in-out infinite;
+  pointer-events: none;
+}
+.ink-particle:nth-child(2) { animation-delay: -2s; animation-duration: 10s; }
+.ink-particle:nth-child(3) { animation-delay: -4s; animation-duration: 12s; }
+.ink-particle:nth-child(4) { animation-delay: -1s; animation-duration: 9s; }
+.ink-particle:nth-child(5) { animation-delay: -6s; animation-duration: 11s; }
+.ink-particle:nth-child(6) { animation-delay: -3s; animation-duration: 13s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-particle { animation: none; opacity: 0.08; }
+}
+
+/* ----- Hero 标题墨韵动画 ----- */
+@keyframes heroInkReveal {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+.hero-title {
+  animation: heroInkReveal 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-subtitle {
+  animation: heroInkReveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+.hero-cta {
+  animation: heroInkReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+/* ----- 特性卡片 — 背景渐变微光替代条纹顶部线 ----- */
+.feature-card {
+  background: linear-gradient(180deg, var(--yunmo-paper-light) 0%, rgba(184, 150, 74, 0.03) 100%);
+  border-radius: 12px;
+  padding: 1.75rem;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+.feature-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: radial-gradient(ellipse 100% 100% at 50% 0%, rgba(139, 58, 58, 0.04), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.feature-card:hover {
+  box-shadow: 0 4px 20px rgba(139, 58, 58, 0.08), 0 1px 4px rgba(31, 22, 12, 0.04);
+  transform: translateY(-2px);
+}
+.feature-card:hover::before {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feature-card { transition: none; }
+  .feature-card:hover { transform: none; }
+}
+
+/* ----- Agent 架构展示 ----- */
+.agent-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: var(--yunmo-paper-light);
+  border: 1px solid var(--yunmo-border);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+}
+.agent-node:hover {
+  border-color: var(--yunmo-accent);
+  box-shadow: 0 2px 12px rgba(139, 58, 58, 0.1);
+  transform: translateY(-1px);
+}
+.agent-node-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: rgba(139, 58, 58, 0.06);
+  border: 1px solid rgba(139, 58, 58, 0.12);
+}
+.agent-node-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--yunmo-ink);
+  white-space: nowrap;
+}
+.agent-node-desc {
+  font-size: 0.6875rem;
+  color: var(--yunmo-text-caption);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ----- Agent 连接箭头 ----- */
+.agent-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--yunmo-accent-light);
+  font-size: 1.25rem;
+  opacity: 0.5;
+}
+@media (min-width: 768px) {
+  .agent-connector { transform: rotate(0deg); }
+}
+
+/* ----- Hero 分隔波浪 ----- */
+.hero-wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  overflow: hidden;
+}
+.hero-wave svg {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 60px;
+}
+
+/* ----- CTA 按钮组 ----- */
+.cta-group {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.cta-secondary {
+  background: transparent;
+  color: var(--yunmo-text-secondary);
+  border: 1px solid var(--yunmo-border);
+  border-radius: 5px;
+  padding: 8px 22px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+.cta-secondary:hover {
+  color: var(--yunmo-accent);
+  border-color: var(--yunmo-accent);
+  background: rgba(139, 58, 58, 0.04);
+}
+
+/* ----- 页脚升级 ----- */
+.landing-footer {
+  border-top: 1px solid var(--yunmo-border);
+  padding: 2rem 0;
+  text-align: center;
+}
+.landing-footer-brand {
+  font-family: "Ma Shan Zheng", "Noto Serif SC", serif;
+  font-size: 1.25rem;
+  color: var(--yunmo-accent);
+  letter-spacing: 0.15em;
+}
+.landing-footer-links {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+.landing-footer-link {
+  font-size: 0.8125rem;
+  color: var(--yunmo-text-caption);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+.landing-footer-link:hover {
+  color: var(--yunmo-accent);
 }

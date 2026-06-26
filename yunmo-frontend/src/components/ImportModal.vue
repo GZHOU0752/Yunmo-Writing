@@ -39,14 +39,14 @@ async function doImport() {
   loading.value = true
   try {
     const res = await api.import.execute(props.novelId, text.value)
-    message.success(`成功导入 ${res.imported} 章`)
+    message.success(`导入完成，共 ${res.imported} 章`)
     emit('imported')
     emit('update:open', false)
     text.value = ''
     fileName.value = ''
     previews.value = []
   } catch (e) {
-    message.error('导入失败: ' + (e.message || '未知错误'))
+    message.error('导入失败，请检查文稿格式后重试')
   } finally { loading.value = false }
 }
 </script>

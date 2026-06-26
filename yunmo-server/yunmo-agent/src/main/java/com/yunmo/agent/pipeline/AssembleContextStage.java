@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
  * 验证 context_layers 和 chapter_plan 已在 API 层预先填入
  */
 @Component
-public class AssembleContextStage implements PipelineStage {
+public class AssembleContextStage implements PipelinePlugin {
+    @Override public int defaultPriority() { return 10; }
 
     private static final Logger log = LoggerFactory.getLogger(AssembleContextStage.class);
 

@@ -28,7 +28,7 @@ async function handleRegister() {
     setToken(res.token)
     router.push('/dashboard')
   } catch (e) {
-    error.value = e.message || '注册失败'
+    error.value = '注册失败，请检查信息后重试'
   } finally {
     loading.value = false
   }

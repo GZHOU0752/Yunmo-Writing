@@ -93,4 +93,28 @@ public class WritingStatsService {
         m.put("targetWordCount", 2000);
         return m;
     }
+
+    /** 获取最近 N 天的历史统计 */
+    public List<Map<String, Object>> getHistory(String novelId, int days) {
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(days - 1);
+        List<DailyWritingStats> stats = repo.findByNovelIdAndDateBetweenOrderByDateAsc(novelId, start, end);
+
+        // 填充缺失的日期
+        Map<LocalDate, DailyWritingStats> dateMap = new LinkedHashMap<>();
+        for (DailyWritingStats s : stats) {
+            dateMap.put(s.getDate(), s);
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            DailyWritingStats s = dateMap.get(d);
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("date", d.toString());
+            item.put("wordCount", s != null ? s.getWordCount() : 0);
+            item.put("targetWordCount", s != null ? s.getTargetWordCount() : 2000);
+            result.add(item);
+        }
+        return result;
+    }
 }

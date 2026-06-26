@@ -34,11 +34,19 @@ function nextChapter() { if (currentIdx.value < totalChapters.value - 1) current
 
 function back() { router.push(`/novels/${novelId}/write`) }
 
-// 提取纯文本
+// 提取纯文本，保持段落结构
 function plainText(content) {
   if (!content) return ''
+  // 已经是纯文本（无 HTML 标签）则直接返回
+  if (!/<[a-zA-Z][^>]*>/.test(content)) return content
+  // HTML → 按段落拆分
   const doc = new DOMParser().parseFromString(content, 'text/html')
-  return doc.body?.textContent || ''
+  const paragraphs = []
+  doc.body?.childNodes.forEach(node => {
+    const text = node.textContent?.trim()
+    if (text) paragraphs.push(text)
+  })
+  return paragraphs.join('\n\n')
 }
 
 // 键盘快捷键
@@ -81,21 +89,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
     </header>
 
     <!-- 正文区域 -->
-    <main class="max-w-2xl mx-auto px-6 md:px-10 py-10 md:py-16">
-      <h1 v-if="currentChapter" class="text-center mb-8" style="font-size:1.5rem;font-weight:700">
+    <main class="max-w-[65ch] mx-auto px-6 md:px-12 py-10 md:py-20 reader-mode"
+      :style="{ fontSize: fontSize + 'px', lineHeight: lineHeight }">
+      <h1 v-if="currentChapter" class="font-brush text-center mb-8" style="font-size:1.75rem;font-weight:400;letter-spacing:0.12em">
         {{ currentChapter.title || '第' + currentChapter.chapterNumber + '章' }}
       </h1>
-      <div
-        v-if="currentChapter"
-        class="leading-relaxed"
-        :style="{ fontSize: fontSize + 'px', lineHeight: lineHeight }"
-      >
-        <p v-for="(para, i) in plainText(currentChapter.content).split('\n').filter(Boolean)" :key="i"
-           class="mb-4" style="text-indent:2em">
+      <div v-if="currentChapter">
+        <p v-for="(para, i) in plainText(currentChapter.content).split('\n').filter(Boolean)" :key="i">
           {{ para }}
         </p>
       </div>
-      <div v-else class="text-center py-20" style="color:var(--yunmo-text-caption)">暂无章节内容</div>
+      <div v-else class="text-center py-20" style="color:var(--yunmo-text-caption)">
+        <p class="text-lg mb-2">尚无笔墨</p>
+        <p class="text-sm">返回写作页面，写下第一章</p>
+      </div>
     </main>
   </div>
 </template>

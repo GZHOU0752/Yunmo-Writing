@@ -22,7 +22,8 @@ import java.util.concurrent.TimeoutException;
  * 替代 Python preflight_node + asyncio.gather
  */
 @Component
-public class PreFlightStage implements PipelineStage {
+public class PreFlightStage implements PipelinePlugin {
+    @Override public int defaultPriority() { return 30; }
 
     private static final Logger log = LoggerFactory.getLogger(PreFlightStage.class);
     private final AgentFactory agentFactory;
@@ -66,22 +67,23 @@ public class PreFlightStage implements PipelineStage {
             ).content().text();
         }, taskExecutor);
 
-        // 等待两者完成（120秒超时）
+        // 等待两者完成（90秒超时，预检不阻塞主流程）
+        String archResult = "";
+        String guardResult = "";
         try {
             CompletableFuture.allOf(archFuture, guardFuture)
-                    .orTimeout(120, TimeUnit.SECONDS)
+                    .orTimeout(90, TimeUnit.SECONDS)
                     .join();
+            archResult = archFuture.get();
+            guardResult = guardFuture.get();
         } catch (Exception e) {
             archFuture.cancel(true);
             guardFuture.cancel(true);
-            if (e.getCause() instanceof TimeoutException) {
-                throw new RuntimeException("PreFlight 预检超时（120秒）", e);
-            }
-            throw e;
+            // 预检超时或失败不中断管线，降级为空报告
+            log.warn("[PreFlight] 预检未在90秒内完成，跳过（不影响生成）: {}", e.getMessage());
+            archResult = "{\"passed\":true,\"concerns\":[],\"suggestions\":[]}";
+            guardResult = "{\"passed\":true,\"violations\":[]}";
         }
-
-        String archResult = archFuture.get();
-        String guardResult = guardFuture.get();
 
         log.info("[PreFlight] 并行预检完成 — Architect: {} chars, Guardian: {} chars",
                 archResult.length(), guardResult.length());

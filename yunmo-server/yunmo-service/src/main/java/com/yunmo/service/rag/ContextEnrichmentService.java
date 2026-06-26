@@ -18,7 +18,7 @@ public class ContextEnrichmentService {
     private final VectorStoreService vectorStore;
 
     private static final int DEFAULT_TOP_K = 5;
-    private static final double DEFAULT_THRESHOLD = 0.7;
+    private static final double DEFAULT_THRESHOLD = 0.6;  // 中文Embedding相似度偏低，0.6更合理
 
     public ContextEnrichmentService(EmbeddingService embeddingService,
                                      VectorStoreService vectorStore) {
@@ -65,8 +65,8 @@ public class ContextEnrichmentService {
             sb.append(String.format("【参考片段 %d】（相似度：%.0f%%）\n",
                     i + 1, r.similarity() * 100));
             String text = r.entry().text();
-            if (text.length() > 300) {
-                text = text.substring(0, 300) + "...";
+            if (text.length() > 800) {
+                text = text.substring(0, 800) + "...";
             }
             sb.append(text).append("\n\n");
         }

@@ -61,7 +61,12 @@ function buildTree(list, parentId) {
   }))
 }
 
-const levelBadge = { 0: { text: '总', color: 'var(--yunmo-accent)' }, 1: { text: '卷', color: 'var(--yunmo-amber)' }, 2: { text: '章', color: 'var(--yunmo-green)' }, 3: { text: '节', color: 'var(--yunmo-text-caption)' } }
+const levelBadge = {
+  0: { text: '全书', color: 'var(--yunmo-accent)' },
+  1: { text: '分卷', color: 'var(--yunmo-amber)' },
+  2: { text: '章纲', color: 'var(--yunmo-green)' },
+  3: { text: '节', color: 'var(--yunmo-text-caption)' },
+}
 
 // 新增子节点
 function addChild(parentNode) {
@@ -153,17 +158,6 @@ watch(() => props.novelId, () => {
 
 <template>
   <div class="outline-tree flex flex-col h-full">
-    <div class="flex items-center justify-between mb-2 px-1">
-      <span class="text-sm font-semibold" style="color:var(--yunmo-accent)">大纲</span>
-      <div class="flex gap-1">
-        <a-button size="small" type="text" @click="addRootNode">
-          <span class="text-sm">+ 新增</span>
-        </a-button>
-        <a-button size="small" type="text" @click="fetchOutline">
-          <span class="text-xs">刷新</span>
-        </a-button>
-      </div>
-    </div>
 
     <a-spin :spinning="loading" class="flex-1 overflow-y-auto">
       <a-tree
@@ -176,29 +170,35 @@ watch(() => props.novelId, () => {
         @select="handleSelect"
       >
         <template #nodeTitle="{ level, node, title }">
-          <div class="flex items-center gap-1 py-0.5 group">
+          <div class="flex items-start gap-1 py-1 group">
             <span
-              class="text-[10px] px-1 rounded font-semibold shrink-0 leading-tight"
-              :style="{ background: levelBadge[level]?.color || 'var(--yunmo-border)', color: level === 0 ? '#fff' : '#fff' }"
+              class="text-[10px] px-1 rounded font-semibold shrink-0 leading-tight mt-0.5"
+              :style="{ background: levelBadge[level]?.color || 'var(--yunmo-border)', color: '#fff' }"
             >
               {{ levelBadge[level]?.text || level }}
             </span>
-            <span class="text-sm truncate flex-1">{{ title }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm truncate">{{ title }}</div>
+              <div
+                v-if="node.outlineContent"
+                class="text-[11px] truncate mt-0.5 leading-snug"
+                style="color:var(--yunmo-text-caption)"
+              >{{ node.outlineContent.substring(0, 60) }}{{ node.outlineContent.length > 60 ? '…' : '' }}</div>
+            </div>
             <span
               v-if="node.chapterNumber"
-              class="text-[10px] px-1 rounded shrink-0"
-              style="background:var(--yunmo-paper-dark);color:var(--yunmo-text-caption)"
+              class="text-[10px] px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+              style="background:var(--yunmo-accent);color:#fff"
             >
               第{{ node.chapterNumber }}章
             </span>
-            <!-- 右键操作按钮 -->
-            <span class="hidden group-hover:flex items-center gap-0.5 shrink-0">
-              <a-button size="small" type="text" class="!p-0 !h-5 !text-xs" @click.stop="addChild(node)">+子</a-button>
-              <a-button size="small" type="text" class="!p-0 !h-5 !text-xs" @click.stop="editNode(node)">✎</a-button>
-              <a-button size="small" type="text" class="!p-0 !h-5 !text-xs" @click.stop="openCompletion(node)">🤖</a-button>
-              <!-- 绑定章节下拉 -->
+            <!-- hover 操作按钮 -->
+            <span class="hidden group-hover:inline-flex items-center gap-0.5 shrink-0">
+              <a-button size="small" type="text" class="!px-1 !h-5 !text-[10px]" @click.stop="addChild(node)">子级</a-button>
+              <a-button size="small" type="text" class="!px-1 !h-5 !text-[10px]" @click.stop="editNode(node)">编辑</a-button>
+              <a-button size="small" type="text" class="!px-1 !h-5 !text-[10px]" @click.stop="openCompletion(node)">AI</a-button>
               <a-dropdown v-if="chapters?.length">
-                <a-button size="small" type="text" class="!p-0 !h-5 !text-xs" @click.stop>🔗</a-button>
+                <a-button size="small" type="text" class="!px-1 !h-5 !text-[10px]" @click.stop>绑定</a-button>
                 <template #overlay>
                   <a-menu @click="({ key }) => bindChapter(node, parseInt(key))">
                     <a-menu-item v-for="ch in chapters.slice(0, 30)" :key="ch.chapterNumber">
@@ -213,17 +213,27 @@ watch(() => props.novelId, () => {
                 cancel-text="取消"
                 @confirm="deleteNode(node)"
               >
-                <a-button size="small" type="text" class="!p-0 !h-5 !text-xs" style="color:var(--yunmo-red)" @click.stop>✕</a-button>
+                <a-button size="small" type="text" class="!px-1 !h-5 !text-[10px]" style="color:var(--yunmo-red)" @click.stop>删</a-button>
               </a-popconfirm>
             </span>
           </div>
         </template>
       </a-tree>
 
+      <!-- 底部新增 -->
+      <div v-if="treeData.length > 0" class="mt-1 text-center">
+        <a-button size="small" type="dashed" block @click="addRootNode" class="text-xs">
+          新增节点
+        </a-button>
+      </div>
+
       <!-- 空状态 -->
-      <div v-if="!loading && treeData.length === 0" class="text-center py-8">
-        <p class="text-caption mb-2">暂无大纲节点</p>
-        <a-button size="small" type="primary" @click="addRootNode">创建总纲</a-button>
+      <div v-if="!loading && treeData.length === 0" class="text-center py-8 px-4">
+        <p class="text-sm mb-1" style="color:var(--yunmo-ink)">还没有大纲</p>
+        <p class="text-xs mb-4 leading-relaxed" style="color:var(--yunmo-text-caption);max-width:240px;margin:0 auto">
+          大纲帮你整理故事走向。从全书大纲开始，然后为每章写章纲，AI 会参照大纲来写正文。
+        </p>
+        <a-button type="primary" size="small" @click="addRootNode">创建全书大纲</a-button>
       </div>
     </a-spin>
 

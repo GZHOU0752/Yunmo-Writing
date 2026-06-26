@@ -38,7 +38,7 @@ async function handleFile(e) {
     await api.references.upload(props.novelId, file.name, content)
     emit('uploaded')
   } catch (e) {
-    errorMsg.value = '上传失败：' + (e.message || '未知错误')
+    errorMsg.value = '上传失败，请检查文件格式后重试'
   } finally {
     uploading.value = false
     // 清空 input 以便重新选择同一文件

@@ -40,6 +40,27 @@ public class DecideVerdictRouter implements ConditionalRouter {
             return END;
         }
 
+        // 优先使用新管线的对抗编辑评分
+        Integer adversarialScore = state.get("adversarial_score", Integer.class);
+        if (adversarialScore != null) {
+            if (adversarialScore < 4) {
+                log.warn("[Verdict] 读者评分 {} < 4 → regenerate", adversarialScore);
+                state.put("retry_count", retryCount + 1);
+                state.put("verdict", "regenerate");
+                return "regenerate";
+            }
+            if (adversarialScore < 8) {
+                log.info("[Verdict] 读者评分 {} < 8 → rewrite（润色重写）", adversarialScore);
+                state.put("retry_count", retryCount + 1);
+                state.put("verdict", "rewrite");
+                return "rewrite";
+            }
+            log.info("[Verdict] 读者评分 {} ≥ 8 → 通过 ✓", adversarialScore);
+            state.put("verdict", "pass");
+            return END;
+        }
+
+        // 兼容旧管线：Guardian + Inspector 报告
         String guardianJson = state.get("guardian_report", String.class);
         String inspectorJson = state.get("inspector_report", String.class);
 
@@ -114,27 +135,8 @@ public class DecideVerdictRouter implements ConditionalRouter {
         }
     }
 
-    /** 从 LLM 返回文本中提取 JSON 子串（括号计数法，防嵌套/代码块干扰） */
+    /** 从 LLM 返回文本中提取 JSON 子串 — 委托给共享工具方法 */
     private String extractJson(String text) {
-        // 先尝试去掉 markdown 代码块标记
-        String cleaned = text.replace("```json", "").replace("```", "");
-
-        int start = cleaned.indexOf('{');
-        if (start < 0) return text;
-
-        int depth = 0;
-        for (int i = start; i < cleaned.length(); i++) {
-            char c = cleaned.charAt(i);
-            if (c == '{') depth++;
-            else if (c == '}') {
-                depth--;
-                if (depth == 0) {
-                    return cleaned.substring(start, i + 1);
-                }
-            }
-        }
-        // 括号未闭合，fallback 到 lastIndexOf
-        int end = cleaned.lastIndexOf('}');
-        return end > start ? cleaned.substring(start, end + 1) : text;
+        return com.yunmo.common.util.JsonExtractor.extractJson(text);
     }
 }

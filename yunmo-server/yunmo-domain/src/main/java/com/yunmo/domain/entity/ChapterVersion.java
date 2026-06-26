@@ -29,4 +29,8 @@ public class ChapterVersion extends BaseEntity {
 
     @Column(name = "word_count")
     private Integer wordCount;
+
+    /** 分支名（null 或 "main" 表示主分支） */
+    @Column(name = "branch_name", length = 64)
+    private String branchName = "main";
 }

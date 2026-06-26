@@ -27,8 +27,11 @@ public class DocumentChunker {
         List<Chunk> chunks = new ArrayList<>();
         if (text == null || text.isEmpty()) return chunks;
 
+        // 统一换行符，兼容 Windows \r\n 和 Unix \n
+        String normalized = text.replace("\r\n", "\n").replace("\r", "\n");
+
         // 按段落切分
-        String[] paragraphs = text.split("\\n\\n+");
+        String[] paragraphs = normalized.split("\n\n+");
         StringBuilder buffer = new StringBuilder();
         int startPos = 0;
         int index = 0;
@@ -37,7 +40,27 @@ public class DocumentChunker {
             String trimmed = para.trim();
             if (trimmed.isEmpty()) continue;
 
-            // 如果当前段落加入后会超过块大小，输出当前块
+            // 如果单个段落超过块大小，按固定窗口切分
+            if (trimmed.length() > chunkSize) {
+                // 先把当前 buffer 输出
+                if (buffer.length() > 0) {
+                    chunks.add(new Chunk(index++, buffer.toString().trim(), startPos,
+                            startPos + buffer.length()));
+                    buffer = new StringBuilder();
+                }
+                // 对超长段落按字符切分
+                int pStart = startPos;
+                int pos = 0;
+                while (pos < trimmed.length()) {
+                    int end = Math.min(pos + chunkSize, trimmed.length());
+                    String piece = trimmed.substring(pos, end);
+                    chunks.add(new Chunk(index++, piece, pStart + pos, pStart + end));
+                    pos += chunkSize - overlap;
+                }
+                continue;
+            }
+
+            // 正常段落：如果当前段加入会超过块大小，先输出当前块
             if (buffer.length() + trimmed.length() > chunkSize && buffer.length() > 0) {
                 chunks.add(new Chunk(index++, buffer.toString().trim(), startPos,
                         startPos + buffer.length()));

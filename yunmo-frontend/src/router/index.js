@@ -45,6 +45,18 @@ const router = createRouter({
       component: () => import('@/views/NovelWriteView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/novels/:id/monitor',
+      name: 'Monitor',
+      component: () => import('@/views/MonitorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

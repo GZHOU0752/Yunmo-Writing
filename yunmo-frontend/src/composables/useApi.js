@@ -16,8 +16,13 @@ async function request(url, options) {
     ...options,
   })
   if (!res.ok) {
+    if (res.status === 401) {
+      clearToken()
+      window.location.hash = '#/login'
+      throw new Error('登录已过期，请重新登录')
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail || `HTTP ${res.status}`)
+    throw new Error(err.detail || '请求失败，请重试')
   }
   // 204 No Content 或空响应体不解析 JSON
   const text = await res.text()
@@ -30,7 +35,7 @@ async function downloadFile(url, filename) {
   const res = await fetch(`${BASE}${url}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
-  if (!res.ok) throw new Error(`下载失败: HTTP ${res.status}`)
+  if (!res.ok) throw new Error('下载失败，请重试')
   const blob = await res.blob()
   const a = document.createElement('a')
   const blobUrl = URL.createObjectURL(blob)
@@ -49,13 +54,25 @@ export function useApi() {
       create: (data) => request('/novels', { method: 'POST', body: JSON.stringify(data) }),
       update: (id, data) => request(`/novels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
       delete: (id) => request(`/novels/${id}`, { method: 'DELETE' }),
+      generateOutline: (id) => request(`/novels/${id}/generate-outline`, { method: 'POST' }),
       search: (id, keyword) => request(`/novels/${id}/search`, { method: 'POST', body: JSON.stringify({ keyword }) }),
       replace: (id, find, replace, chapterNumbers) => request(`/novels/${id}/replace`, { method: 'POST', body: JSON.stringify({ find, replace, chapterNumbers }) }),
+      analyzeStyle: (id, referenceText) => request(`/novels/${id}/analyze-style`, { method: 'POST', body: JSON.stringify({ referenceText }) }),
+      chat: (novelId, message, chapterNumber, history) => {
+        const token = localStorage.getItem('yunmo_token')
+        return fetch(`${BASE}/novels/${novelId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ message, chapterNumber, history }),
+        })
+      },
     },
     characters: {
       list: (novelId) => request(`/novels/${novelId}/characters`),
       create: (novelId, data) => request(`/novels/${novelId}/characters`, { method: 'POST', body: JSON.stringify(data) }),
       update: (novelId, id, data) => request(`/novels/${novelId}/characters/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      delete: (novelId, id) => request(`/novels/${novelId}/characters/${id}`, { method: 'DELETE' }),
+      analyze: (novelId, id) => request(`/novels/${novelId}/characters/${id}/analyze`, { method: 'POST' }),
     },
     chapters: {
       list: (novelId) => request(`/novels/${novelId}/chapters`),
@@ -68,67 +85,66 @@ export function useApi() {
       delete: (novelId, cn) => request(`/novels/${novelId}/chapters/${cn}`, { method: 'DELETE' }),
       versions: (novelId, cn) => request(`/novels/${novelId}/chapters/${cn}/versions`),
       restore: (novelId, cn, versionId) => request(`/novels/${novelId}/chapters/${cn}/versions/${versionId}/restore`, { method: 'POST' }),
-
+      fork: (novelId, cn, branchName) => request(`/novels/${novelId}/chapters/${cn}/fork`, { method: 'POST', body: JSON.stringify({ branchName }) }),
+      branches: (novelId, cn) => request(`/novels/${novelId}/chapters/${cn}/branches`),
+      clearCheckpoint: (novelId, cn) => request(`/novels/${novelId}/chapters/${cn}/checkpoint`, { method: 'DELETE' }),
     },
     world: {
       list: (novelId) => request(`/novels/${novelId}/world`),
       create: (novelId, data) => request(`/novels/${novelId}/world`, { method: 'POST', body: JSON.stringify(data) }),
-    },
-    generation: {
-      stream: (novelId, cn, focus) =>
-        fetch(`${BASE}/novels/${novelId}/chapters/${cn}/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ focus }),
-        }),
+      delete: (novelId, id) => request(`/novels/${novelId}/world/${id}`, { method: 'DELETE' }),
     },
     genre: {
       list: () => request('/genre/list'),
     },
-    foreshadows: {
-      list: (novelId) => request(`/novels/${novelId}/foreshadows`),
-      reminders: (novelId, chapter) =>
-        request(`/novels/${novelId}/foreshadows/reminders?currentChapter=${chapter}`),
-    },
-    export: {
-      md: (novelId) => downloadFile(`/novels/${novelId}/export/md`, 'novel.md'),
-      txt: (novelId) => downloadFile(`/novels/${novelId}/export/txt`, 'novel.txt'),
-      epub: (novelId) => downloadFile(`/novels/${novelId}/export/epub`, 'novel.epub'),
-    },
-    organizations: {
-      list: (novelId) => request(`/novels/${novelId}/organizations`),
-      create: (novelId, data) => request(`/novels/${novelId}/organizations`, { method: 'POST', body: JSON.stringify(data) }),
-    },
-    relations: {
-      get: (novelId) => request(`/novels/${novelId}/relations`),
-    },
     stats: {
       overview: (novelId) => request(`/novels/${novelId}/stats`),
-      setTarget: (novelId, targetWordCount) => request(`/novels/${novelId}/stats/target`, { method: 'PUT', body: JSON.stringify({ targetWordCount }) }),
+      history: (novelId, days) => request(`/novels/${novelId}/stats/history?days=${days || 30}`),
     },
     references: {
       list: (novelId) => request(`/novels/${novelId}/references`),
       upload: (novelId, fileName, content) => request(`/novels/${novelId}/references`, { method: 'POST', body: JSON.stringify({ fileName, content }) }),
       delete: (novelId, materialId) => request(`/novels/${novelId}/references/${materialId}`, { method: 'DELETE' }),
-      status: (novelId) => request(`/novels/${novelId}/references/status`),
+      updateTrigger: (novelId, materialId, data) => request(`/novels/${novelId}/references/${materialId}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
     outline: {
       list: (novelId) => request(`/novels/${novelId}/outline`),
       create: (novelId, data) => request(`/novels/${novelId}/outline`, { method: 'POST', body: JSON.stringify(data) }),
       update: (novelId, id, data) => request(`/novels/${novelId}/outline/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       delete: (novelId, id) => request(`/novels/${novelId}/outline/${id}`, { method: 'DELETE' }),
-      reorder: (novelId, items) => request(`/novels/${novelId}/outline/reorder`, { method: 'PUT', body: JSON.stringify(items) }),
       bindChapter: (novelId, id, chapterNumber) => request(`/novels/${novelId}/outline/${id}/bind-chapter`, { method: 'PUT', body: JSON.stringify({ chapterNumber }) }),
+      discuss: (novelId, message, nodeId) => {
+        const token = localStorage.getItem('yunmo_token')
+        return fetch(`${BASE}/novels/${novelId}/outline/discuss`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ message, nodeId }),
+        })
+      },
+      planChapter: (novelId, chapterNumber, answers) => {
+        const token = localStorage.getItem('yunmo_token')
+        return fetch(`${BASE}/novels/${novelId}/outline/plan-chapter/${chapterNumber}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ answers }),
+        })
+      },
     },
     auth: {
       login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
       register: (email, password, displayName) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, display_name: displayName }) }),
       me: () => request('/auth/me'),
       logout: () => request('/auth/logout', { method: 'POST' }),
+      deleteAccount: () => request('/auth/account', { method: 'DELETE' }),
+    },
+    export: {
+      epub: (novelId) => downloadFile(`/novels/${novelId}/export/epub`, 'novel.epub'),
+      txt: (novelId) => downloadFile(`/novels/${novelId}/export/txt`, 'novel.txt'),
     },
     import: {
       preview: (novelId, text) => request(`/import/to-novel/${novelId}/preview`, { method: 'POST', body: JSON.stringify({ text }) }),
       execute: (novelId, text) => request(`/import/to-novel/${novelId}`, { method: 'POST', body: JSON.stringify({ text }) }),
+      analyze: (novelId) => request(`/import/analyze/${novelId}`, { method: 'POST' }),
     },
   }
 }

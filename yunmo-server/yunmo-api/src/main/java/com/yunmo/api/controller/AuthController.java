@@ -53,7 +53,7 @@ public class AuthController {
             user.setEmail(email);
             user.setDisplayName(displayName);
             user.setPasswordHash(hashPassword(password));
-            userRepo.save(user);
+            user = userRepo.save(user);
 
             String token = JwtUtil.create(getSecret(), user.getId(), TOKEN_TTL.toMillis());
 
@@ -112,6 +112,28 @@ public class AuthController {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
+    @DeleteMapping("/account")
+    public Mono<ResponseEntity<Map<String, Object>>> deleteAccount(@RequestHeader("Authorization") String auth) {
+        return Mono.fromCallable(() -> {
+            if (auth == null || !auth.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.<String, Object>of("error", "未认证"));
+            }
+            String token = auth.substring(7);
+            String userId = JwtUtil.verifyAndGetSubject(getSecret(), token);
+            if (userId == null) {
+                return ResponseEntity.status(401).body(Map.<String, Object>of("error", "令牌无效或已过期"));
+            }
+            var user = userRepo.findById(userId).orElse(null);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.<String, Object>of("error", "用户不存在"));
+            }
+            // 删除用户及其所有数据
+            userRepo.delete(user);
+            redis.delete(REDIS_KEY_PREFIX + token);
+            return ResponseEntity.ok(Map.<String, Object>of("message", "账号已注销"));
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
     @GetMapping("/me")
     public Mono<ResponseEntity<Map<String, Object>>> me(@RequestHeader("Authorization") String auth) {
         return Mono.fromCallable(() -> {
@@ -134,9 +156,7 @@ public class AuthController {
     }
 
     private String getSecret() {
-        String key = appProperties.getSecretKey();
-        if (key == null || key.isBlank()) key = "yunmo-dev-secret";
-        return key;
+        return appProperties.getSecretKey();
     }
 
     private String hashPassword(String password) {

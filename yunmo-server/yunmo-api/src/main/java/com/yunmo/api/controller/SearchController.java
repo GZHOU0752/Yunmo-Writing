@@ -35,7 +35,7 @@ public class SearchController {
 
             for (Chapter ch : chapters) {
                 if (ch.getContent() == null) continue;
-                String content = ch.getContent();
+                String content = decodeEntities(ch.getContent());
                 String searchIn = content.toLowerCase();
 
                 // 收集所有匹配位置
@@ -131,5 +131,18 @@ public class SearchController {
             result.put("chapterCount", chapterNumbers.size());
             return result;
         }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /** 解码 HTML 数字实体（如 &#12288; → 全角空格） */
+    private String decodeEntities(String text) {
+        if (text == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("&#(\\d+);").matcher(text);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            char c = (char) Integer.parseInt(m.group(1));
+            m.appendReplacement(sb, String.valueOf(c));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 }

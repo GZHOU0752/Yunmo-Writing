@@ -38,6 +38,10 @@ public class ReferenceMaterialController {
                 item.put("chunkCount", m.getChunkCount());
                 item.put("status", m.getStatus());
                 item.put("createdAt", m.getCreatedAt());
+                item.put("triggerMode", m.getTriggerMode() != null ? m.getTriggerMode() : "MANUAL");
+                item.put("triggerKeywords", m.getTriggerKeywords());
+                item.put("cooldownChapters", m.getCooldownChapters());
+                item.put("priority", m.getPriority());
                 return item;
             }).toList();
         }).subscribeOn(Schedulers.boundedElastic());
@@ -72,6 +76,32 @@ public class ReferenceMaterialController {
                               @PathVariable String materialId) {
         return Mono.fromRunnable(() -> materialService.delete(materialId))
                 .subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
+    /** 更新素材触发配置 */
+    @PatchMapping("/{materialId}")
+    public Mono<Map<String, Object>> updateTrigger(@PathVariable String novelId,
+                                                    @PathVariable String materialId,
+                                                    @RequestBody Map<String, Object> body) {
+        return Mono.fromCallable(() -> {
+            String triggerMode = (String) body.get("triggerMode");
+            String triggerKeywords = (String) body.get("triggerKeywords");
+            Integer cooldownChapters = body.containsKey("cooldownChapters")
+                ? ((Number) body.get("cooldownChapters")).intValue() : null;
+            Integer priority = body.containsKey("priority")
+                ? ((Number) body.get("priority")).intValue() : null;
+            ReferenceMaterial m = materialService.updateTriggerConfig(
+                materialId, triggerMode, triggerKeywords, cooldownChapters, priority);
+            Map<String, Object> result = new LinkedHashMap<>();
+            if (m != null) {
+                result.put("id", m.getId());
+                result.put("triggerMode", m.getTriggerMode());
+                result.put("triggerKeywords", m.getTriggerKeywords());
+                result.put("cooldownChapters", m.getCooldownChapters());
+                result.put("priority", m.getPriority());
+            }
+            return result;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 检查小说是否有参考素材 */
