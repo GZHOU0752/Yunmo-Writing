@@ -1,5 +1,6 @@
 package com.yunmo.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.domain.entity.OutlineNode;
 import com.yunmo.service.outline.OutlineCompletionService;
 import com.yunmo.service.outline.OutlineDiscussionService;
@@ -22,6 +23,7 @@ public class OutlineController {
     private final OutlineNodeService outlineNodeService;
     private final OutlineCompletionService completionService;
     private final OutlineDiscussionService discussionService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OutlineController(OutlineNodeService outlineNodeService,
                               OutlineCompletionService completionService,
@@ -119,12 +121,16 @@ public class OutlineController {
         int childLevel = ((Number) body.getOrDefault("childLevel", 2)).intValue();
         int count = ((Number) body.getOrDefault("count", 3)).intValue();
         return Flux.concat(
-            // 先返回一个标记事件，告知前端开始
             Flux.just("event: start\ndata: {\"status\":\"generating\"}\n\n"),
-            // 流式输出 JSON
             completionService.completeStream(novelId, id, childLevel, count)
-                .map(chunk -> "data: " + chunk + "\n\n"),
-            // 结束标记
+                .map(chunk -> {
+                    try {
+                        return "data: " + objectMapper.writeValueAsString(
+                            Map.of("token", chunk)) + "\n\n";
+                    } catch (Exception e) {
+                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                    }
+                }),
             Flux.just("event: done\ndata: {}\n\n")
         );
     }
@@ -141,7 +147,14 @@ public class OutlineController {
         return Flux.concat(
             Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
             discussionService.discuss(novelId, nodeId, message)
-                .map(chunk -> "data: " + chunk + "\n\n"),
+                .map(chunk -> {
+                    try {
+                        return "data: " + objectMapper.writeValueAsString(
+                            Map.of("token", chunk)) + "\n\n";
+                    } catch (Exception e) {
+                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                    }
+                }),
             Flux.just("event: done\ndata: {}\n\n")
         );
     }
@@ -157,7 +170,14 @@ public class OutlineController {
         return Flux.concat(
             Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
             discussionService.planChapter(novelId, chapterNumber, answers.isEmpty() ? null : answers)
-                .map(chunk -> "data: " + chunk + "\n\n"),
+                .map(chunk -> {
+                    try {
+                        return "data: " + objectMapper.writeValueAsString(
+                            Map.of("token", chunk)) + "\n\n";
+                    } catch (Exception e) {
+                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                    }
+                }),
             Flux.just("event: done\ndata: {}\n\n")
         );
     }

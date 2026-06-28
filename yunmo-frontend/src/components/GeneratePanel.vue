@@ -61,7 +61,7 @@ const statusLabels = {
     </div>
 
     <!-- 章节字数范围提示 -->
-    <div class="text-xs mb-2 text-center" style="color:var(--yunmo-text-caption)">
+    <div class="text-xs mb-2 text-center">
       每章字数：<strong style="color:var(--yunmo-accent)">2,300 - 2,799 字</strong>
     </div>
 
@@ -90,7 +90,7 @@ const statusLabels = {
     >
       <div class="flex items-center justify-between mb-1.5">
         <label class="text-xs font-semibold" style="color:var(--yunmo-accent)">生成预览</label>
-        <span class="text-[11px] font-tabular" style="color:var(--yunmo-text-caption)">
+        <span class="text-[11px] font-tabular">
           {{ streamedText.length.toLocaleString() }} 字
         </span>
       </div>

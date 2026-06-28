@@ -66,6 +66,10 @@ const antTheme = {
       <a-button size="small" type="text" class="toolbar-btn text-xs" @click="logout">登出</a-button>
     </nav>
 
-    <router-view />
+    <router-view v-slot="{ Component }">
+      <Transition name="page-fade" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </router-view>
   </a-config-provider>
 </template>

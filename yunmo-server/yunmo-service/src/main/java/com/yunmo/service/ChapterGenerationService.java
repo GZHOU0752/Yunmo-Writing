@@ -240,6 +240,10 @@ public class ChapterGenerationService {
                         log.info("自动创建章节: novel={}, chapter={}", novelId, chapterNumber);
                         return chapterRepo.save(newChapter);
                     });
+            // 防御：genreConfig 为 null 时使用空 Map（Marathon 调用等场景）
+            final Map<String, Object> effectiveGenreConfig = genreConfig != null
+                    ? genreConfig : Collections.emptyMap();
+
             var characters = characterRepo.findByNovelIdAndIsDeadFalse(novelId);
 
             // 加载小说基本信息 — 书名+简介+全书大纲，作为 AI 写作的最低限度上下文
@@ -250,7 +254,7 @@ public class ChapterGenerationService {
 
             // 组装上下文
             String contextText = contextAssembly.assemble(novelId, chapterNumber,
-                    genreConfig, characters);
+                    effectiveGenreConfig, characters);
 
             // 构建大纲文本（注入大纲树的章/节信息）
             String chapterPlan = buildChapterPlan(novelId, chapterNumber, chapter);
@@ -296,7 +300,7 @@ public class ChapterGenerationService {
             PipelineState state = new PipelineState();
             state.put("novel_id", novelId);
             state.put("chapter_number", chapterNumber);
-            state.put("genre_config", genreConfig);
+            state.put("genre_config", effectiveGenreConfig);
             state.put("genre_id", novel != null ? novel.getGenreId() : "");
             state.put("context_text", contextText);
             state.put("chapter_plan", chapterPlan);
@@ -427,6 +431,20 @@ public class ChapterGenerationService {
                 }
             } catch (Exception e) {
                 log.warn("[HookSystem] 钩子选择失败，跳过钩子注入: {}", e.getMessage());
+            }
+
+            // 构建章节控制卡（本章规划）— 从已有 PipelineState 提取，零额外 LLM 调用
+            try {
+                HookSelection hs = state.get("hook_selection", HookSelection.class);
+                @SuppressWarnings("unchecked")
+                List<Map<String, String>> profiles =
+                    (List<Map<String, String>>) (Object) state.get("character_profiles", List.class);
+                Map<String, Object> controlCard = buildChapterControlCard(
+                        chapterPlan, hs, profiles, genreConfig);
+                state.put("chapter_control_card", controlCard);
+                log.info("[ControlCard] 章节控制卡已构建: chapter={}", chapterNumber);
+            } catch (Exception e) {
+                log.warn("[ControlCard] 控制卡构建失败: {}", e.getMessage());
             }
 
             // P1: 故事合同 — 加载章级合同并注入管线状态
@@ -571,6 +589,23 @@ public class ChapterGenerationService {
             cachedChapter.setContent(content);
             cachedChapter.setWordCount(wordCount);
             cachedChapter.setStatus(com.yunmo.common.enums.ChapterStatus.GENERATED);
+
+            // 将钩子编排和控制卡 JSON 写入 transient 字段（随 GET 接口返回前端）
+            try {
+                java.io.StringWriter sw = new java.io.StringWriter();
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                Object hookSel = state.get("hook_selection", Object.class);
+                if (hookSel != null) {
+                    cachedChapter.setHookSelectionJson(om.writeValueAsString(hookSel));
+                }
+                Object ctrlCard = state.get("chapter_control_card", Object.class);
+                if (ctrlCard != null) {
+                    cachedChapter.setChapterControlCardJson(om.writeValueAsString(ctrlCard));
+                }
+            } catch (Exception e) {
+                log.warn("[SaveChapter] 摘要数据写入失败: {}", e.getMessage());
+            }
+
             chapterRepo.save(cachedChapter);
             log.info("章节已保存(缓存): novel={}, chapter={}, words={}", novelId, chapterNumber, wordCount);
             // 伏笔检测
@@ -698,8 +733,7 @@ public class ChapterGenerationService {
                 log.warn("[Continuity] 连续性校验发现 {} 个问题: chapter={}, violations={}",
                         violations.size(), chapterNumber, violations);
             }
-            // 自动生成章纲 + 提取新角色
-            autoGenerateChapterPlan(novelId, chapterNumber, title, content);
+            // 提取新角色（不再自动覆盖 writingPlan，避免重复生成时偏离大纲）
             autoExtractNewCharacters(novelId, chapterNumber, content);
         } catch (Exception e) {
             log.warn("[Memory] 记忆更新/连续性校验失败: {}", e.getMessage());
@@ -728,12 +762,19 @@ public class ChapterGenerationService {
         }
     }
 
-    /** 从新生成的章节中提取新角色，自动创建角色卡 */
+    /**
+     * 从新生成的章节中提取新角色并自动创建角色卡。
+     * 同时更新已有角色的 lastAppearanceChapter（基于章节内容中的人名匹配）。
+     */
     private void autoExtractNewCharacters(String novelId, int chapterNumber, String content) {
-        try {
-            var provider = providerRegistry.get("deepseek");
-            if (provider == null || content == null || content.length() < 500) return;
+        var provider = providerRegistry.get("deepseek");
+        if (provider == null || content == null || content.length() < 500) {
+            // 即使没有 LLM，也更新已有角色出场章节
+            updateExistingCharacterAppearances(novelId, chapterNumber, content);
+            return;
+        }
 
+        try {
             String prompt = String.format("""
                 从以下小说章节中提取新出场的角色。只提取本章首次出场、之前未出现过的角色。
                 对于每个角色，给出：姓名、角色类型(PROTAGONIST/ANTAGONIST/SUPPORTING/MINOR)、简短描述(外貌+性格+身份)、重要度(1-10)。
@@ -762,40 +803,68 @@ public class ChapterGenerationService {
 
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> newChars = objectMapper.readValue(json, List.class);
-            if (newChars.isEmpty()) return;
 
-            int added = 0;
-            var existingNames = characterRepo.findByNovelIdAndIsDeadFalse(novelId).stream()
-                .map(c -> c.getName()).collect(Collectors.toSet());
+            if (!newChars.isEmpty()) {
+                int added = 0;
+                var existingNames = characterRepo.findByNovelIdAndIsDeadFalse(novelId).stream()
+                    .map(c -> c.getName()).collect(Collectors.toSet());
 
-            for (Map<String, Object> nc : newChars) {
-                String name = (String) nc.get("name");
-                if (name == null || name.isBlank() || existingNames.contains(name)) continue;
+                for (Map<String, Object> nc : newChars) {
+                    String name = (String) nc.get("name");
+                    if (name == null || name.isBlank() || existingNames.contains(name)) continue;
 
-                com.yunmo.domain.entity.Character character = new com.yunmo.domain.entity.Character();
-                character.setNovelId(novelId);
-                character.setName(name);
-                character.setDescription((String) nc.getOrDefault("description", ""));
-                try {
-                    character.setRole(com.yunmo.common.enums.CharacterRole.valueOf(
-                        ((String) nc.getOrDefault("role", "SUPPORTING")).toUpperCase()));
-                } catch (Exception ex) {
-                    character.setRole(com.yunmo.common.enums.CharacterRole.SUPPORTING);
+                    com.yunmo.domain.entity.Character character = new com.yunmo.domain.entity.Character();
+                    character.setNovelId(novelId);
+                    character.setName(name);
+                    character.setDescription((String) nc.getOrDefault("description", ""));
+                    try {
+                        character.setRole(com.yunmo.common.enums.CharacterRole.valueOf(
+                            ((String) nc.getOrDefault("role", "SUPPORTING")).toUpperCase()));
+                    } catch (Exception ex) {
+                        character.setRole(com.yunmo.common.enums.CharacterRole.SUPPORTING);
+                    }
+                    Object imp = nc.get("importance");
+                    character.setImportance(imp instanceof Number n ? n.intValue() : 5);
+                    character.setLastAppearanceChapter(chapterNumber);
+
+                    characterRepo.save(character);
+                    existingNames.add(name);
+                    added++;
                 }
-                Object imp = nc.get("importance");
-                character.setImportance(imp instanceof Number n ? n.intValue() : 5);
-                character.setLastAppearanceChapter(chapterNumber);
 
-                characterRepo.save(character);
-                existingNames.add(name);
-                added++;
-            }
-
-            if (added > 0) {
-                log.info("[Auto] 自动提取 {} 个新角色: chapter={}", added, chapterNumber);
+                if (added > 0) {
+                    log.info("[Auto] 自动提取 {} 个新角色: chapter={}", added, chapterNumber);
+                }
             }
         } catch (Exception e) {
-            log.warn("[Auto] 角色提取失败: {}", e.getMessage());
+            log.warn("[Auto] 角色LLM提取失败: {}", e.getMessage());
+        }
+
+        // 无论 LLM 提取成功与否，基于内容匹配更新已有角色出场信息
+        updateExistingCharacterAppearances(novelId, chapterNumber, content);
+    }
+
+    /** 基于章节内容中的人名匹配，更新已有角色的 lastAppearanceChapter */
+    private void updateExistingCharacterAppearances(String novelId, int chapterNumber, String content) {
+        try {
+            var chars = characterRepo.findByNovelIdAndIsDeadFalse(novelId);
+            String cleanContent = content.replaceAll("<[^>]+>", "");
+            int updated = 0;
+            for (var c : chars) {
+                if (c.getName() == null || c.getName().length() < 2) continue;
+                if (cleanContent.contains(c.getName())) {
+                    if (c.getLastAppearanceChapter() == null || c.getLastAppearanceChapter() < chapterNumber) {
+                        c.setLastAppearanceChapter(chapterNumber);
+                        characterRepo.save(c);
+                        updated++;
+                    }
+                }
+            }
+            if (updated > 0) {
+                log.info("[Auto] 更新 {} 个已有角色出场信息: chapter={}", updated, chapterNumber);
+            }
+        } catch (Exception e) {
+            log.warn("[Auto] 角色出场更新失败: {}", e.getMessage());
         }
     }
 
@@ -820,14 +889,13 @@ public class ChapterGenerationService {
         return q.toString().trim();
     }
 
-    /** 构建章节的大纲注释，优先从大纲树读取，回退到 writingPlan */
+    /**
+     * 构建章节的大纲注释。
+     * 优先级：大纲树节点 > 作者手动 writingPlan > 默认标题。
+     * 不再自动从生成内容截取 writingPlan（避免重复生成时偏离大纲）。
+     */
     private String buildChapterPlan(String novelId, int chapterNumber, Chapter chapter) {
-        // 有手动写作计划则优先
-        if (chapter.getWritingPlan() != null && !chapter.getWritingPlan().isBlank()) {
-            return chapter.getWritingPlan();
-        }
-
-        // 从大纲树中获取与该章节关联的节点
+        // 1. 先从大纲树中获取与该章节关联的节点（优先保证与大纲对齐）
         var outlineNodes = outlineNodeService.getTree(novelId);
         var matchedNodes = outlineNodes.stream()
                 .filter(n -> n.getChapterNumber() != null && n.getChapterNumber() == chapterNumber)
@@ -835,6 +903,11 @@ public class ChapterGenerationService {
                 .toList();
 
         if (matchedNodes.isEmpty()) {
+            // 2. 大纲树无匹配 → fallback 到作者手动写的 writingPlan
+            if (chapter.getWritingPlan() != null && !chapter.getWritingPlan().isBlank()) {
+                return chapter.getWritingPlan();
+            }
+            // 3. 都没有 → 默认标题
             return String.format("第 %d 章 - %s", chapterNumber,
                     chapter.getTitle() != null ? chapter.getTitle() : "");
         }
@@ -904,5 +977,73 @@ public class ChapterGenerationService {
                     return profile;
                 })
                 .toList();
+    }
+
+    /**
+     * 从已有数据构建章节控制卡（本章规划），零额外 LLM 调用。
+     * 数据来源：hook系统选择结果 + 角色档案 + 类型禁词 + 章纲文本片段。
+     */
+    private Map<String, Object> buildChapterControlCard(
+            String chapterPlan,
+            HookSelection hookSelection,
+            List<Map<String, String>> characterProfiles,
+            Map<String, Object> genreConfig
+    ) {
+        Map<String, Object> card = new LinkedHashMap<>();
+
+        // 角色列表（取前5位角色名）
+        if (characterProfiles != null && !characterProfiles.isEmpty()) {
+            List<String> names = characterProfiles.stream()
+                    .map(p -> p.get("name"))
+                    .filter(n -> n != null && !n.isEmpty())
+                    .limit(5)
+                    .toList();
+            card.put("characters", names);
+        } else {
+            card.put("characters", List.of());
+        }
+
+        // 钩子信息
+        if (hookSelection != null) {
+            card.put("openingHook", hookSelection.openingHook().chineseName()
+                    + "（" + hookSelection.openingHook().formulaNumber() + "式）");
+            card.put("closingHook", hookSelection.closingHook().chineseName()
+                    + "（" + hookSelection.closingHook().formulaNumber() + "式）");
+            card.put("hookOps", "章首" + hookSelection.openingHook().chineseName()
+                    + " → 章尾" + hookSelection.closingHook().chineseName());
+            card.put("suspenseIntensity", hookSelection.suspenseIntensity());
+        }
+
+        // 类型禁词
+        if (genreConfig != null) {
+            @SuppressWarnings("unchecked")
+            List<String> forbiddenTerms = (List<String>) genreConfig.get("forbidden_terms");
+            if (forbiddenTerms != null && !forbiddenTerms.isEmpty()) {
+                // 取前10个禁词作为提示
+                card.put("forbiddenZones", forbiddenTerms.stream()
+                        .limit(10).toList());
+            }
+        }
+
+        // 章纲摘要（取前两行作为本章使命/核心冲突）
+        if (chapterPlan != null && !chapterPlan.isEmpty()) {
+            String[] lines = chapterPlan.split("\n");
+            List<String> briefLines = new java.util.ArrayList<>();
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+                briefLines.add(trimmed.length() > 60 ? trimmed.substring(0, 60) + "..." : trimmed);
+                if (briefLines.size() >= 2) break;
+            }
+            if (!briefLines.isEmpty()) {
+                card.put("mission", briefLines.get(0));
+            }
+            if (briefLines.size() >= 2) {
+                card.put("coreConflict", briefLines.get(1));
+            }
+        }
+
+        log.debug("[ControlCard] 构建完成: keys={}", card.keySet());
+        return card;
     }
 }

@@ -73,11 +73,11 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
     <!-- 顶部工具栏 -->
     <header class="h-12 border-b flex items-center px-4 gap-4" style="border-color:var(--yunmo-border)">
       <a-button size="small" type="text" class="toolbar-btn" @click="back">← 退出阅读</a-button>
-      <span class="text-xs" style="color:var(--yunmo-text-caption)">
+      <span class="text-xs">
         第 {{ currentIdx + 1 }} / {{ totalChapters }} 章
       </span>
       <div class="flex-1" />
-      <span class="text-xs" style="color:var(--yunmo-text-caption)">字号</span>
+      <span class="text-xs">字号</span>
       <a-button size="small" type="text" class="toolbar-btn" @click="changeFont(-2)">A-</a-button>
       <a-button size="small" type="text" class="toolbar-btn" @click="changeFont(2)">A+</a-button>
       <div class="w-px h-4" style="background:var(--yunmo-border)" />
@@ -99,7 +99,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
           {{ para }}
         </p>
       </div>
-      <div v-else class="text-center py-20" style="color:var(--yunmo-text-caption)">
+      <div v-else class="text-center py-20">
         <p class="text-lg mb-2">尚无笔墨</p>
         <p class="text-sm">返回写作页面，写下第一章</p>
       </div>

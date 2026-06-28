@@ -121,15 +121,15 @@ async function doReplace() {
 
     <!-- 搜索选项 -->
     <div class="flex items-center gap-4 mb-3 px-1">
-      <label class="flex items-center gap-1.5 text-xs cursor-pointer" style="color:var(--yunmo-text-caption)">
+      <label class="flex items-center gap-1.5 text-xs cursor-pointer">
         <input type="checkbox" v-model="useRegex" class="cursor-pointer" />
         正则
       </label>
-      <label class="flex items-center gap-1.5 text-xs cursor-pointer" style="color:var(--yunmo-text-caption)">
+      <label class="flex items-center gap-1.5 text-xs cursor-pointer">
         <input type="checkbox" v-model="caseSensitive" class="cursor-pointer" />
         区分大小写
       </label>
-      <label class="flex items-center gap-1.5 text-xs cursor-pointer" style="color:var(--yunmo-text-caption)">
+      <label class="flex items-center gap-1.5 text-xs cursor-pointer">
         <input type="checkbox" v-model="wholeWord" :disabled="useRegex" class="cursor-pointer" />
         全词匹配
       </label>
@@ -141,7 +141,7 @@ async function doReplace() {
     <a-spin :spinning="searching || replacing">
       <div v-if="results.length > 0">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs" style="color:var(--yunmo-text-caption)">
+          <span class="text-xs">
             共 {{ results.length }} 个章节匹配
           </span>
           <div class="flex gap-2">
@@ -165,7 +165,7 @@ async function doReplace() {
         </div>
       </div>
       <div v-if="!searching && results.length === 0 && keyword" class="text-center py-8">
-        <span class="text-sm" style="color:var(--yunmo-text-caption)">未找到匹配结果</span>
+        <span class="text-sm">未找到匹配结果</span>
       </div>
     </a-spin>
   </a-modal>

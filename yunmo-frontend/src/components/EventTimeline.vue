@@ -53,12 +53,12 @@ function goToChapter(cn) {
   <div>
     <div class="flex items-center justify-between mb-3">
       <span class="text-xs font-semibold" style="color:var(--yunmo-accent)">章节时间线</span>
-      <span class="text-[10px]" style="color:var(--yunmo-text-caption)">{{ chapters.length }} 章</span>
+      <span class="text-[10px]">{{ chapters.length }} 章</span>
     </div>
 
     <a-spin :spinning="loading" size="small">
       <div v-if="chapters.length === 0" class="text-center py-4">
-        <span class="text-xs" style="color:var(--yunmo-text-caption)">暂无章节</span>
+        <span class="text-xs">暂无章节</span>
       </div>
 
       <div v-else class="chapter-timeline overflow-y-auto" style="max-height:400px">
@@ -115,19 +115,19 @@ function goToChapter(cn) {
     <div class="flex flex-wrap gap-3 mt-3 pt-2 border-t border-[var(--yunmo-border)]">
       <div class="flex items-center gap-1">
         <span class="w-2 h-2 rounded-full" style="background:var(--yunmo-green)" />
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">已完成</span>
+        <span class="text-[10px]">已完成</span>
       </div>
       <div class="flex items-center gap-1">
         <span class="w-2 h-2 rounded-full" style="background:var(--yunmo-amber)" />
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">草稿/写作中</span>
+        <span class="text-[10px]">草稿/写作中</span>
       </div>
       <div class="flex items-center gap-1">
         <span class="w-2 h-2 rounded-full" style="background:var(--yunmo-border)" />
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">未开始</span>
+        <span class="text-[10px]">未开始</span>
       </div>
       <div class="flex items-center gap-1">
         <span class="text-[10px]" style="color:var(--yunmo-gold)">★</span>
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">爽点</span>
+        <span class="text-[10px]">爽点</span>
       </div>
     </div>
   </div>

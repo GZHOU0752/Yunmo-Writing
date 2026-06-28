@@ -11,7 +11,9 @@ export function clearToken() { localStorage.removeItem('yunmo_token') }
 export function isLoggedIn() { return !!localStorage.getItem('yunmo_token') }
 
 async function request(url, options) {
-  const res = await fetch(`${BASE}${url}`, {
+  // 防御性处理：若 url 已经带了 /api/v1 前缀则不重复拼接
+  const cleanUrl = url.startsWith(BASE) ? url.substring(BASE.length) || '/' : url
+  const res = await fetch(`${BASE}${cleanUrl}`, {
     headers: { 'Content-Type': 'application/json', ...authHeaders(), ...options?.headers },
     ...options,
   })
@@ -48,6 +50,16 @@ async function downloadFile(url, filename) {
 
 export function useApi() {
   return {
+    /** 通用 GET/POST（用于尚未封装 namespace 的端点） */
+    get: (url) => request(url),
+    post: (url, data) => request(url, { method: 'POST', body: JSON.stringify(data) }),
+    /** 监控面板 */
+    monitor: {
+      stats: (novelId) => request(`/novels/${novelId}/monitor/stats`),
+      foreshadows: (novelId) => request(`/novels/${novelId}/monitor/foreshadows`),
+      audits: (novelId) => request(`/novels/${novelId}/monitor/audits`),
+      characterGraph: (novelId) => request(`/novels/${novelId}/monitor/characters/graph`),
+    },
     novels: {
       list: () => request('/novels'),
       get: (id) => request(`/novels/${id}`),
@@ -57,7 +69,6 @@ export function useApi() {
       generateOutline: (id) => request(`/novels/${id}/generate-outline`, { method: 'POST' }),
       search: (id, keyword) => request(`/novels/${id}/search`, { method: 'POST', body: JSON.stringify({ keyword }) }),
       replace: (id, find, replace, chapterNumbers) => request(`/novels/${id}/replace`, { method: 'POST', body: JSON.stringify({ find, replace, chapterNumbers }) }),
-      analyzeStyle: (id, referenceText) => request(`/novels/${id}/analyze-style`, { method: 'POST', body: JSON.stringify({ referenceText }) }),
       chat: (novelId, message, chapterNumber, history) => {
         const token = localStorage.getItem('yunmo_token')
         return fetch(`${BASE}/novels/${novelId}/chat`, {

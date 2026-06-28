@@ -34,7 +34,7 @@ async function handleLogin() {
     <div class="yunmo-card-ghost p-10 w-full max-w-sm" style="box-shadow:0 8px 32px rgba(139,58,58,0.06),0 2px 8px rgba(0,0,0,0.04)">
       <div class="text-center mb-8">
         <div class="font-brush text-4xl tracking-widest mb-2" style="color:var(--yunmo-accent)">云墨</div>
-        <p class="text-xs" style="color:var(--yunmo-text-caption)">古典美学 · AI 写作伴侣</p>
+        <p class="text-xs">古典美学 · AI 写作伴侣</p>
       </div>
 
       <div class="flex flex-col gap-4">

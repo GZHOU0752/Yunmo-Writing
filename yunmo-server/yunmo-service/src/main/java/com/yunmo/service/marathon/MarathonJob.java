@@ -34,6 +34,8 @@ public class MarathonJob {
     private LocalDateTime pausedAt;
     /** 暂停原因 */
     private String pauseReason;
+    /** 是否正在写章（防止cron和kickoff并发） */
+    private volatile boolean writing = false;
     /** 事件日志（最多保留200条） */
     private List<MarathonEvent> events = new ArrayList<>();
 
@@ -94,6 +96,8 @@ public class MarathonJob {
     public void setPausedAt(LocalDateTime pausedAt) { this.pausedAt = pausedAt; }
     public String getPauseReason() { return pauseReason; }
     public void setPauseReason(String pauseReason) { this.pauseReason = pauseReason; }
+    public boolean isWriting() { return writing; }
+    public void setWriting(boolean writing) { this.writing = writing; }
     public List<MarathonEvent> getEvents() { return events; }
     public void setEvents(List<MarathonEvent> events) { this.events = events; }
 }

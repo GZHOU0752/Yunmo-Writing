@@ -54,7 +54,7 @@ watch(() => props.novelId, fetchHistory, { immediate: true })
   <div class="mt-3 pt-3" style="border-top:1px solid var(--yunmo-border)">
     <div class="flex items-center justify-between mb-2">
       <span class="text-xs font-semibold" style="color:var(--yunmo-accent)">30 天趋势</span>
-      <span v-if="loading" class="text-[10px]" style="color:var(--yunmo-text-caption)">加载中...</span>
+      <span v-if="loading" class="text-[10px]">加载中...</span>
     </div>
     <div v-if="history.length > 0" class="flex items-end gap-px justify-center" style="height:90px">
       <div
@@ -90,7 +90,7 @@ watch(() => props.novelId, fetchHistory, { immediate: true })
     </div>
     <!-- 移动平均线 -->
     <div v-if="movingAvg.length > 0" class="mt-2 flex items-center gap-2 text-[10px]">
-      <span style="color:var(--yunmo-text-caption)">7日均线</span>
+      <span>7日均线</span>
       <span class="font-tabular" style="color:var(--yunmo-accent)">
         {{ movingAvg[movingAvg.length - 1]?.avg?.toLocaleString() || 0 }} 字/天
       </span>

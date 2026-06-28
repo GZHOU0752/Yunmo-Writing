@@ -19,6 +19,7 @@ const detailOpen = ref(false)
 const detailNovel = ref(null)
 const editTitle = ref('')
 const editSynopsis = ref('')
+const editGenre = ref('xuanhuan')
 const savingDetail = ref(false)
 
 // 搜索 & 筛选
@@ -75,6 +76,7 @@ function openDetail(novel) {
   detailNovel.value = novel
   editTitle.value = novel.title
   editSynopsis.value = novel.synopsis || ''
+  editGenre.value = novel.genreId || 'xuanhuan'
   detailOpen.value = true
 }
 
@@ -85,9 +87,11 @@ async function saveDetail() {
     await api.novels.update(detailNovel.value.id, {
       title: editTitle.value.trim(),
       synopsis: editSynopsis.value.trim(),
+      genre_id: editGenre.value,
     })
     detailNovel.value.title = editTitle.value.trim()
     detailNovel.value.synopsis = editSynopsis.value.trim()
+    detailNovel.value.genreId = editGenre.value
     detailOpen.value = false
   } catch (e) {
     console.error('保存失败:', e)
@@ -148,8 +152,8 @@ function coverGradient(idx) {
       <!-- 页面标题 -->
       <div class="flex items-center justify-between mb-8">
         <div>
-          <h1 class="text-2xl font-bold tracking-tight antialiased-title" style="color:var(--yunmo-ink)">书房</h1>
-          <p class="text-sm mt-1" style="color:var(--yunmo-text-caption)">笔墨纸砚，皆备于此</p>
+          <h1 class="text-2xl font-bold tracking-tight antialiased-title">书房</h1>
+          <p class="text-sm mt-1">笔墨纸砚，皆备于此</p>
         </div>
         <a-button type="primary" size="large" @click="showCreate = true" class="yunmo-btn">
           新建作品
@@ -185,7 +189,7 @@ function coverGradient(idx) {
       <!-- 类型 & 状态筛选标签 -->
       <div class="flex flex-wrap gap-2 mb-6">
         <div class="flex items-center gap-2 mr-4">
-          <span class="text-xs font-medium" style="color:var(--yunmo-text-caption)">类型</span>
+          <span class="text-xs font-medium">类型</span>
           <button
             class="filter-tag"
             :class="{ active: activeGenre === 'all' }"
@@ -202,7 +206,7 @@ function coverGradient(idx) {
       </div>
 
       <!-- 结果计数 -->
-      <div v-if="filteredNovels.length > 0" class="text-xs mb-4" style="color:var(--yunmo-text-caption)">
+      <div v-if="filteredNovels.length > 0" class="text-xs mb-4">
         共 {{ filteredNovels.length }} 部作品
       </div>
 
@@ -230,7 +234,9 @@ function coverGradient(idx) {
 
         <!-- 有搜索/筛选但无结果 -->
         <div v-if="!store.loading && store.novels.length > 0 && filteredNovels.length === 0" class="empty-state">
-          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-accent)" stroke-width="1.5" opacity="0.35"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+          </div>
           <h3 class="empty-state-title">未找到匹配的作品</h3>
           <p class="empty-state-desc">
             尝试调整搜索关键词或筛选条件
@@ -261,7 +267,7 @@ function coverGradient(idx) {
         <a-form-item label="简介">
           <a-textarea v-model:value="newSynopsis" placeholder="写一段简介..." :rows="3" />
         </a-form-item>
-        <p class="text-xs" style="color:var(--yunmo-text-caption)">类型可在下一步设置中选择</p>
+        <p class="text-xs">类型可在下一步设置中选择</p>
       </a-form>
     </a-modal>
 
@@ -272,6 +278,11 @@ function coverGradient(idx) {
           <a-form-item label="书名">
             <a-input v-model:value="editTitle" placeholder="书名" />
           </a-form-item>
+          <a-form-item label="类型">
+            <a-select v-model:value="editGenre">
+              <a-select-option v-for="(label, id) in genreLabels" :key="id" :value="id">{{ label }}</a-select-option>
+            </a-select>
+          </a-form-item>
           <a-form-item label="简介">
             <a-textarea v-model:value="editSynopsis" placeholder="写一段简介..." :rows="4" />
           </a-form-item>
@@ -280,7 +291,6 @@ function coverGradient(idx) {
         <WritingStatsCard :novel-id="detailNovel?.id" class="mb-4" />
 
         <div class="yunmo-card p-4 mb-4 space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-caption">类型</span><span>{{ genreLabels[detailNovel.genreId] || detailNovel.genreId }}</span></div>
           <div class="flex justify-between"><span class="text-caption">总字数</span><span>{{ detailNovel.wordCount?.toLocaleString() || 0 }} 字</span></div>
           <div class="flex justify-between"><span class="text-caption">章节数</span><span>{{ detailNovel.totalChapters || 0 }} 章</span></div>
           <div class="flex justify-between"><span class="text-caption">创建时间</span><span>{{ detailNovel.createdAt?.substring(0, 10) || '-' }}</span></div>

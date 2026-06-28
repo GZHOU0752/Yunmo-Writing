@@ -94,7 +94,7 @@ watch(() => props.novelId, loadOutline, { immediate: true })
       <div class="flex items-center justify-between mb-1">
         <span class="text-xs font-semibold" style="color:var(--yunmo-accent)">全书大纲</span>
         <div class="flex items-center gap-1">
-          <span v-if="synopsisSaving" class="text-[10px]" style="color:var(--yunmo-text-caption)">保存中...</span>
+          <span v-if="synopsisSaving" class="text-[10px]">保存中...</span>
           <a-button
             v-if="!outline"
             size="small"
@@ -184,7 +184,7 @@ watch(() => props.novelId, loadOutline, { immediate: true })
           <div
             v-else-if="ch.writingPlan"
             class="px-2 pb-1.5 text-[11px] leading-snug cursor-pointer"
-            style="color:var(--yunmo-text-caption)"
+           
             @click="startEditPlan(ch)"
           >
             {{ ch.writingPlan.substring(0, 100) }}{{ ch.writingPlan.length > 100 ? '…' : '' }}
@@ -201,7 +201,7 @@ watch(() => props.novelId, loadOutline, { immediate: true })
           </div>
         </div>
 
-        <div v-if="(chapters || []).length === 0" class="text-xs py-4 text-center" style="color:var(--yunmo-text-caption)">
+        <div v-if="(chapters || []).length === 0" class="text-xs py-4 text-center">
           还没有章节
         </div>
       </div>

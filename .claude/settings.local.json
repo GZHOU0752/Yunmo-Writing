@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "WebFetch(domain:help.aliyun.com)"
+      "WebFetch(domain:help.aliyun.com)",
+      "Read(//d/Virtual Machines/**)",
+      "Bash(mv \"Ubuntu 64 位\" \"Ubuntu\")"
     ]
   }
 }

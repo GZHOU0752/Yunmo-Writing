@@ -165,23 +165,28 @@ watch(() => panelOpen.value, (v) => {
 <template>
   <div>
     <!-- 入口按钮 -->
-    <div class="collapsible-header" @click="panelOpen = !panelOpen">
+    <button
+      class="collapsible-header w-full text-left"
+      :aria-expanded="panelOpen"
+      aria-controls="chat-panel-body"
+      @click="panelOpen = !panelOpen"
+    >
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
            :style="{ transform: panelOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
         <path d="M6 9l6 6 6-6" />
       </svg>
       <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">AI 写作助手</span>
       <span v-if="streaming" class="w-1.5 h-1.5 rounded-full bg-[var(--yunmo-gold)] status-pulse ml-auto" />
-    </div>
+    </button>
 
-    <div v-if="panelOpen" class="mt-2">
+    <div v-if="panelOpen" id="chat-panel-body" class="mt-2">
       <!-- 快捷按钮 -->
       <div class="flex flex-wrap gap-1.5 mb-3">
         <button
           v-for="action in quickActions"
           :key="action.label"
-          class="text-[10px] px-2.5 py-1 rounded-full border transition-fast"
-          style="border-color:var(--yunmo-border);color:var(--yunmo-text-secondary)"
+          class="text-[11px] px-3 py-1.5 rounded-full border transition-fast"
+          style="border-color:var(--yunmo-border);color:var(--yunmo-text-secondary);min-height:32px"
           :disabled="streaming"
           @click="sendMessage(action.prompt)"
         >
@@ -214,18 +219,18 @@ watch(() => panelOpen.value, (v) => {
             <div v-if="msg.role === 'ai' && msg.content && msg.content.length > 10 && i === messages.length - 1 && !streaming"
                  class="flex gap-2 mt-2 pt-2" style="border-top:1px solid var(--yunmo-border)">
               <button
-                class="text-[10px] px-2 py-0.5 rounded"
-                style="background:var(--yunmo-accent);color:var(--yunmo-paper-light)"
+                class="text-xs px-3 py-1.5 rounded"
+                style="background:var(--yunmo-accent);color:var(--yunmo-paper-light);min-width:44px;min-height:32px"
                 @click="acceptResponse"
               >采纳</button>
               <button
-                class="text-[10px] px-2 py-0.5 rounded"
-                style="background:var(--yunmo-paper-light);color:var(--yunmo-text-caption);border:1px solid var(--yunmo-border)"
+                class="text-xs px-3 py-1.5 rounded"
+                style="background:var(--yunmo-paper-light);color:var(--yunmo-text-caption);border:1px solid var(--yunmo-border);min-width:44px;min-height:32px"
                 @click="rejectResponse"
               >拒绝</button>
               <button
-                class="text-[10px] px-2 py-0.5 rounded"
-                style="background:var(--yunmo-paper-light);color:var(--yunmo-text-caption);border:1px solid var(--yunmo-border)"
+                class="text-xs px-3 py-1.5 rounded"
+                style="background:var(--yunmo-paper-light);color:var(--yunmo-text-caption);border:1px solid var(--yunmo-border);min-width:44px;min-height:32px"
                 @click="sendMessage(lastQuickAction || quickActions[0].prompt)"
               >重新生成</button>
             </div>

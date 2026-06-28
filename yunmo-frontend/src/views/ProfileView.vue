@@ -10,7 +10,6 @@ const novelStore = useNovelStore()
 const user = ref({ email: '', displayName: '' })
 const editName = ref('')
 const editingName = ref(false)
-const saving = ref(false)
 
 // 修改密码
 const pwdModal = ref(false)
@@ -37,12 +36,9 @@ function startEdit() {
 }
 
 async function saveName() {
-  saving.value = true
-  try {
-    await api.auth.me // 目前后端无更新昵称接口，仅本地更新
-    user.value.displayName = editName.value
-    editingName.value = false
-  } catch {} finally { saving.value = false }
+  // 后端暂无昵称更新接口，仅本地显示
+  user.value.displayName = editName.value
+  editingName.value = false
 }
 
 async function changePwd() {
@@ -85,14 +81,14 @@ async function handleLogout() {
       <div class="space-y-3 text-sm">
         <div class="flex items-center justify-between">
           <span class="text-caption">邮箱</span>
-          <span style="color:var(--yunmo-ink)">{{ user.email || '-' }}</span>
+          <span>{{ user.email || '-' }}</span>
         </div>
         <div class="flex items-center justify-between">
           <span class="text-caption">昵称</span>
           <template v-if="editingName">
             <div class="flex items-center gap-1">
               <a-input v-model:value="editName" size="small" class="w-28" />
-              <a-button size="small" type="primary" :loading="saving" @click="saveName">保存</a-button>
+              <a-button size="small" type="primary" @click="saveName">保存</a-button>
               <a-button size="small" @click="editingName = false">取消</a-button>
             </div>
           </template>
@@ -110,7 +106,7 @@ async function handleLogout() {
     <!-- 危险操作 -->
     <div class="yunmo-card p-5 mb-4" style="border-color:var(--yunmo-red)">
       <h3 class="text-sm font-semibold mb-1" style="color:var(--yunmo-red)">注销账号</h3>
-      <p class="text-xs mb-3" style="color:var(--yunmo-text-caption)">注销后所有作品、章节、设定将永久删除，不可恢复。</p>
+      <p class="text-xs mb-3">注销后所有作品、章节、设定将永久删除，不可恢复。</p>
       <a-popconfirm
         title="确定注销账号？所有数据将永久删除，不可恢复！"
         ok-text="确认注销"

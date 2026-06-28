@@ -17,7 +17,7 @@ const editor = useEditor({
       blockquote: false,
     }),
     Underline,
-    Placeholder.configure({ placeholder: '落笔生花...' }),
+    Placeholder.configure({ placeholder: '在此书写正文，段间以空行分隔...' }),
   ],
   onUpdate: ({ editor }) => {
     emit('update:content', editor.getHTML())

@@ -1,9 +1,13 @@
 package com.yunmo.domain.entity;
 
 import com.yunmo.common.enums.ChapterStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 章节 — 对标 Python Chapter 模型
@@ -51,6 +55,14 @@ public class Chapter extends BaseEntity {
     /** 因果句（大纲节点对应） */
     @Column(name = "causal_sentence", columnDefinition = "TEXT")
     private String causalSentence;
+
+    /** 钩子编排数据（transient，不持久化，生成后随 GET 接口返回） */
+    @Transient
+    private String hookSelectionJson;
+
+    /** 章节控制卡数据（transient，不持久化，生成后随 GET 接口返回） */
+    @Transient
+    private String chapterControlCardJson;
 
     /** 上下文快照 ID */
     @Column(name = "context_snapshot_id")

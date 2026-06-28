@@ -10,9 +10,7 @@ export const useWriteStore = defineStore('write', () => {
   const streamedText = ref('')
   const qualityReport = ref(null)
   const checkpoint = ref(null)
-  const chapterControlCard = ref(null)    // 章节控制卡
-  const antiAIDiagnosis = ref(null)       // 去AI味诊断结果
-  const hookSelection = ref(null)         // 钩子编排选择
+  const antiAIDiagnosis = ref(null)       // AI检测诊断结果
   const api = useApi()
 
   // SSE 实例在 store 级别创建一次，避免每次 generateChapter 泄露实例
@@ -105,6 +103,10 @@ export const useWriteStore = defineStore('write', () => {
           anti_ai_report: antiAIReport,
           guard_results: guardResults,
         }
+        // 同步更新去AI味诊断结果（供 DeAIScoreBadge 读取）
+        if (antiAIReport) {
+          antiAIDiagnosis.value = antiAIReport
+        }
         // 重置累积数据
         guardianData = null
         inspectorData = null
@@ -188,7 +190,7 @@ export const useWriteStore = defineStore('write', () => {
 
   return {
     chapters, currentChapter, sseStatus, streamedText, qualityReport, checkpoint,
-    chapterControlCard, antiAIDiagnosis, hookSelection,
+    antiAIDiagnosis,
     fetchChapters, loadChapter, generateChapter, saveChapter,
   }
 })

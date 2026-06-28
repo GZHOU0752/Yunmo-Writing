@@ -5,10 +5,10 @@ const props = defineProps({ report: Object })
 
 /** 分组映射 */
 const groupConfig = {
-  '情节': { color: 'var(--yunmo-amber)', icon: '📖', order: 1 },
-  '角色': { color: 'var(--yunmo-accent)', icon: '👤', order: 2 },
-  '文笔': { color: 'var(--yunmo-green)', icon: '✒️', order: 3 },
-  '合规': { color: 'var(--yunmo-accent-light)', icon: '🛡️', order: 4 },
+  '情节': { color: 'var(--yunmo-amber)', order: 1 },
+  '角色': { color: 'var(--yunmo-accent)', order: 2 },
+  '文笔': { color: 'var(--yunmo-green)', order: 3 },
+  '合规': { color: 'var(--yunmo-accent-light)', order: 4 },
 }
 
 /** 从 Inspector 报告中提取33维维度并分组 */
@@ -162,7 +162,7 @@ const fixGuidance = computed(() => {
       <span class="font-tabular" :style="{color: guardFinalStatus === 'PASS' ? 'var(--yunmo-green)' : guardFinalStatus === 'WARNING' ? 'var(--yunmo-amber)' : 'var(--yunmo-red)'}">
         {{ guardFinalStatus === 'PASS' ? '通过' : guardFinalStatus === 'WARNING' ? '提醒' : '拦截' }}
       </span>
-      <span v-if="guardWarningCount > 0" class="text-[10px]" style="color:var(--yunmo-text-caption)">
+      <span v-if="guardWarningCount > 0" class="text-[10px]">
         {{ guardWarningCount }} 条提醒
       </span>
     </div>
@@ -182,7 +182,7 @@ const fixGuidance = computed(() => {
       <a-collapse-panel
         v-for="group in sortedGroups"
         :key="group.name"
-        :header="`${group.icon || ''} ${group.name}组 · 均分 ${group.avgScore}`"
+        :header="`${group.name} · 均分 ${group.avgScore}`"
       >
         <div class="space-y-1">
           <div v-for="(d, i) in group.dims" :key="i" class="flex items-center gap-2 text-xs py-0.5">
@@ -214,7 +214,7 @@ const fixGuidance = computed(() => {
         <span class="font-tabular text-xs" :style="{color: antiAI.aiScore >= 30 ? 'var(--yunmo-red)' : antiAI.aiScore >= 15 ? 'var(--yunmo-amber)' : 'var(--yunmo-green)'}">
           {{ antiAI.aiScore?.toFixed(0) || 0 }} 分
         </span>
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">
+        <span class="text-[10px]">
           {{ antiAI.passed ? '通过' : '发现 ' + (antiAI.totalFindings || 0) + ' 处可疑' }}
         </span>
       </div>
@@ -225,12 +225,12 @@ const fixGuidance = computed(() => {
           class="text-xs p-1.5 rounded flex items-start gap-2"
           :style="{background: 'var(--yunmo-paper-dark)', borderLeft: '2px solid ' + (f.confidence >= 0.7 ? 'var(--yunmo-red)' : 'var(--yunmo-amber)')}"
         >
-          <span class="shrink-0 font-tabular text-[10px]" style="color:var(--yunmo-text-caption)">
+          <span class="shrink-0 font-tabular text-[10px]">
             {{ f.confidence >= 0.7 ? '⚠️' : '💡' }}
           </span>
           <div class="min-w-0">
             <span style="color:var(--yunmo-text-primary)">{{ f.description }}</span>
-            <div v-if="f.suggestion" class="text-[11px] mt-0.5" style="color:var(--yunmo-text-caption)">{{ f.suggestion }}</div>
+            <div v-if="f.suggestion" class="text-[11px] mt-0.5">{{ f.suggestion }}</div>
           </div>
         </div>
       </div>
@@ -245,7 +245,7 @@ const fixGuidance = computed(() => {
           :key="i"
           class="flex items-center gap-2 text-xs py-0.5"
         >
-          <span class="w-12 text-[10px] font-tabular" style="color:var(--yunmo-text-caption)">
+          <span class="w-12 text-[10px] font-tabular">
             L{{ g.level }}
           </span>
           <span class="flex-1 truncate">{{ g.guardName }}</span>
@@ -295,7 +295,7 @@ const fixGuidance = computed(() => {
     <div v-if="fixGuidance.length > 0" class="mb-2">
       <div class="flex items-center gap-2 mb-2">
         <span class="text-xs font-semibold" style="color:var(--yunmo-amber)">🔧 修复指引</span>
-        <span class="text-[10px]" style="color:var(--yunmo-text-caption)">
+        <span class="text-[10px]">
           {{ fixGuidance.filter(f => f.level === 'severe').length }} 项需重点修复
         </span>
       </div>

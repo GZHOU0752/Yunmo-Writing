@@ -1,5 +1,6 @@
 package com.yunmo.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.service.chat.ChatService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
@@ -58,7 +60,15 @@ public class ChatController {
         return Flux.concat(
             Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
             chatService.chat(novelId, message, chapterNumber, history)
-                .map(chunk -> "data: " + chunk + "\n\n"),
+                .map(chunk -> {
+                    try {
+                        String escaped = objectMapper.writeValueAsString(
+                            Map.of("token", chunk));
+                        return "data: " + escaped + "\n\n";
+                    } catch (Exception e) {
+                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                    }
+                }),
             Flux.just("event: done\ndata: {}\n\n")
         );
     }

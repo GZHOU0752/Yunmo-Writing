@@ -48,14 +48,14 @@ watch(() => props.novelId, fetchStats, { immediate: true })
   <div v-if="stats" class="p-3 text-sm" style="background:var(--yunmo-paper-dark);border-radius:4px">
     <div class="flex items-center justify-between mb-3">
       <span class="text-xs font-semibold tracking-wider" style="color:var(--yunmo-accent)">今日墨迹</span>
-      <span class="text-[10px] cursor-pointer" style="color:var(--yunmo-text-caption)" @click="fetchStats">刷新</span>
+      <span class="text-[10px] cursor-pointer" @click="fetchStats">刷新</span>
     </div>
 
     <!-- 墨条进度 -->
     <div class="mb-3">
       <div class="flex justify-between items-baseline mb-1">
-        <span class="text-lg font-semibold font-brush" style="color:var(--yunmo-ink)">{{ todayWordCount().toLocaleString() }}</span>
-        <span class="text-xs" style="color:var(--yunmo-text-caption)">/ {{ todayTarget().toLocaleString() }} 字</span>
+        <span class="text-lg font-semibold font-brush">{{ todayWordCount().toLocaleString() }}</span>
+        <span class="text-xs">/ {{ todayTarget().toLocaleString() }} 字</span>
       </div>
       <div class="h-1.5" style="background:var(--yunmo-paper)">
         <div
@@ -73,7 +73,7 @@ watch(() => props.novelId, fetchStats, { immediate: true })
     <!-- 七日墨染 -->
     <div class="flex gap-1 justify-between">
       <div v-for="(day, i) in weekDays" :key="i" class="flex flex-col items-center flex-1">
-        <span class="text-[10px] mb-1" style="color:var(--yunmo-text-caption)">{{ day }}</span>
+        <span class="text-[10px] mb-1">{{ day }}</span>
         <div
           class="w-5 h-5 transition-colors duration-300"
           :style="{
@@ -95,7 +95,7 @@ watch(() => props.novelId, fetchStats, { immediate: true })
 
     <!-- 展开趋势图 -->
     <div class="text-center mt-2">
-      <a-button size="small" type="text" class="text-[10px]" style="color:var(--yunmo-text-caption)" @click="expanded = !expanded">
+      <a-button size="small" type="text" class="text-[10px]" @click="expanded = !expanded">
         {{ expanded ? '收起趋势' : '展开趋势 ▾' }}
       </a-button>
     </div>

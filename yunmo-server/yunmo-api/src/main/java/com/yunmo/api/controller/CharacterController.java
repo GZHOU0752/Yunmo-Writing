@@ -4,8 +4,12 @@ import com.yunmo.common.dto.LLMConfig;
 import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Character;
 import com.yunmo.domain.entity.Chapter;
+import com.yunmo.domain.entity.CharacterState;
+import com.yunmo.domain.entity.EmotionalDebt;
 import com.yunmo.domain.repository.CharacterRepository;
 import com.yunmo.domain.repository.ChapterRepository;
+import com.yunmo.domain.repository.CharacterStateRepository;
+import com.yunmo.domain.repository.EmotionalDebtRepository;
 import com.yunmo.llm.provider.ProviderRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,14 +28,20 @@ public class CharacterController {
 
     private final CharacterRepository characterRepo;
     private final ChapterRepository chapterRepo;
+    private final CharacterStateRepository characterStateRepo;
+    private final EmotionalDebtRepository emotionalDebtRepo;
     private final ProviderRegistry providerRegistry;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     public CharacterController(CharacterRepository characterRepo,
                                ChapterRepository chapterRepo,
+                               CharacterStateRepository characterStateRepo,
+                               EmotionalDebtRepository emotionalDebtRepo,
                                ProviderRegistry providerRegistry) {
         this.characterRepo = characterRepo;
         this.chapterRepo = chapterRepo;
+        this.characterStateRepo = characterStateRepo;
+        this.emotionalDebtRepo = emotionalDebtRepo;
         this.providerRegistry = providerRegistry;
     }
 
@@ -213,6 +223,83 @@ public class CharacterController {
             result.put("updated_description", character.getDescription());
             result.put("analysis", analysis);
             log.info("角色分析完成: {} (novel={})", character.getName(), novelId);
+            return result;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 聚合角色关系数据。
+     * 从 CharacterState.relationshipChanges 和 EmotionalDebt 两张表聚合，
+     * 返回角色间关系图（关系变化 + 情感债）。
+     */
+    @GetMapping("/relationships")
+    public Mono<Map<String, Object>> relationships(@PathVariable String novelId) {
+        return Mono.fromCallable(() -> {
+            Map<String, Object> result = new LinkedHashMap<>();
+
+            // 1. 从 CharacterState 聚合关系变化
+            var characters = characterRepo.findByNovelIdOrderByImportanceDesc(novelId);
+            List<Map<String, Object>> relationalChanges = new ArrayList<>();
+            for (Character c : characters) {
+                var states = characterStateRepo.findByNovelIdAndCharacterIdOrderByChapterNumberAsc(novelId, c.getId());
+                for (CharacterState state : states) {
+                    if (state.getRelationshipChanges() != null && !state.getRelationshipChanges().isBlank()) {
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("characterName", c.getName());
+                        entry.put("characterId", c.getId());
+                        entry.put("chapterNumber", state.getChapterNumber());
+                        try {
+                            entry.put("changes", objectMapper.readValue(state.getRelationshipChanges(), Map.class));
+                        } catch (Exception e) {
+                            entry.put("changes", state.getRelationshipChanges());
+                        }
+                        relationalChanges.add(entry);
+                    }
+                }
+            }
+            result.put("relationshipChanges", relationalChanges);
+
+            // 2. 从 EmotionalDebt 聚合情感债
+            var debts = emotionalDebtRepo.findByNovelId(novelId);
+            List<Map<String, Object>> debtList = new ArrayList<>();
+            for (EmotionalDebt d : debts) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", d.getId());
+                entry.put("debtor", d.getDebtor());
+                entry.put("creditor", d.getCreditor());
+                entry.put("debtType", d.getDebtType().name());
+                entry.put("description", d.getDescription());
+                entry.put("createdChapter", d.getCreatedChapter());
+                entry.put("expectedResolutionChapter", d.getExpectedResolutionChapter());
+                entry.put("resolvedChapter", d.getResolvedChapter());
+                entry.put("status", d.getStatus().name());
+                debtList.add(entry);
+            }
+            result.put("emotionalDebts", debtList);
+
+            // 3. 构建角色关系图（邻接表）
+            Map<String, Set<String>> graph = new LinkedHashMap<>();
+            for (EmotionalDebt d : debts) {
+                graph.computeIfAbsent(d.getDebtor(), k -> new LinkedHashSet<>()).add(d.getCreditor());
+                graph.computeIfAbsent(d.getCreditor(), k -> new LinkedHashSet<>()).add(d.getDebtor());
+            }
+            List<Map<String, Object>> edges = new ArrayList<>();
+            Set<String> seenEdges = new HashSet<>();
+            for (var entry : graph.entrySet()) {
+                for (String target : entry.getValue()) {
+                    String edgeKey = entry.getKey().compareTo(target) < 0
+                        ? entry.getKey() + "|||" + target
+                        : target + "|||" + entry.getKey();
+                    if (seenEdges.add(edgeKey)) {
+                        Map<String, Object> edge = new LinkedHashMap<>();
+                        edge.put("source", entry.getKey());
+                        edge.put("target", target);
+                        edges.add(edge);
+                    }
+                }
+            }
+            result.put("graph", edges);
+
             return result;
         }).subscribeOn(Schedulers.boundedElastic());
     }

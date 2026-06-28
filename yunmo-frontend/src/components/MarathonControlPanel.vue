@@ -5,12 +5,14 @@ import { message } from 'ant-design-vue'
 
 const props = defineProps({
   novelId: { type: String, required: true },
+  currentChapter: { type: Number, default: 1 },
 })
 
 const api = useApi()
 const status = ref(null)
 const loading = ref(false)
 const actionLoading = ref(false)
+const targetChapterCount = ref(null) // 用户选择生成多少章
 let pollTimer = null
 
 const stateLabel = computed(() => ({
@@ -31,10 +33,9 @@ const stateColor = computed(() => ({
 
 async function fetchStatus() {
   try {
-    const res = await api.get(`/api/v1/novels/${props.novelId}/marathon/status`)
+    const res = await api.get(`/novels/${props.novelId}/marathon/status`)
     status.value = res
   } catch {
-    // 无活跃任务
     status.value = { state: 'IDLE' }
   }
 }
@@ -42,12 +43,17 @@ async function fetchStatus() {
 async function startMarathon() {
   actionLoading.value = true
   try {
-    await api.post(`/api/v1/novels/${props.novelId}/marathon/start`, {
-      startChapter: status.value?.currentChapter || 1,
-      targetChapters: 0,
+    // 优先用马拉松当前进度，首次启动则用用户选中的章节
+    const startChapter = (status.value?.state !== 'IDLE' && status.value?.currentChapter)
+      ? status.value.currentChapter
+      : props.currentChapter
+    const target = targetChapterCount.value ? Number(targetChapterCount.value) : 0
+    await api.post(`/novels/${props.novelId}/marathon/start`, {
+      startChapter,
+      targetChapters: target > 0 ? target : 0,
     })
     await fetchStatus()
-    message.success('马拉松创作已启动')
+    message.success(target > 0 ? `开始批量生成 ${target} 章` : '批量生成已启动')
   } catch (e) {
     message.error('启动失败: ' + (e?.message || '未知错误'))
   } finally {
@@ -58,7 +64,7 @@ async function startMarathon() {
 async function pauseMarathon() {
   actionLoading.value = true
   try {
-    await api.post(`/api/v1/novels/${props.novelId}/marathon/pause`, { reason: '手动暂停' })
+    await api.post(`/novels/${props.novelId}/marathon/pause`, { reason: '手动暂停' })
     await fetchStatus()
     message.success('已暂停')
   } catch (e) {
@@ -71,7 +77,7 @@ async function pauseMarathon() {
 async function resumeMarathon() {
   actionLoading.value = true
   try {
-    await api.post(`/api/v1/novels/${props.novelId}/marathon/resume`)
+    await api.post(`/novels/${props.novelId}/marathon/resume`)
     await fetchStatus()
     message.success('已恢复')
   } catch (e) {
@@ -84,7 +90,7 @@ async function resumeMarathon() {
 async function stopMarathon() {
   actionLoading.value = true
   try {
-    await api.post(`/api/v1/novels/${props.novelId}/marathon/stop`)
+    await api.post(`/novels/${props.novelId}/marathon/stop`)
     status.value = { state: 'IDLE' }
     message.success('已停止')
   } catch (e) {
@@ -96,7 +102,7 @@ async function stopMarathon() {
 
 onMounted(() => {
   fetchStatus()
-  pollTimer = setInterval(fetchStatus, 15000) // 15秒轮询
+  pollTimer = setInterval(fetchStatus, 15000)
 })
 
 onBeforeUnmount(() => {
@@ -108,8 +114,8 @@ onBeforeUnmount(() => {
   <div class="yunmo-card p-4">
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">
-        <span class="text-lg">⚙️</span>
-        <h4 class="font-semibold text-sm" style="color: var(--yunmo-ink)">马拉松创作</h4>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-accent)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9l2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9l2.83-2.83"/></svg>
+        <h4 class="font-semibold text-sm" style="color: var(--yunmo-ink)">批量生成</h4>
       </div>
       <div class="flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full" :style="{ background: stateColor }"
@@ -123,7 +129,10 @@ onBeforeUnmount(() => {
     <div v-if="status?.state !== 'IDLE'" class="grid grid-cols-2 gap-2 mb-3">
       <div class="text-center p-2 rounded" style="background: var(--yunmo-paper-dark)">
         <div class="text-lg font-bold font-tabular" style="color: var(--yunmo-accent)">{{ status?.currentChapter || 0 }}</div>
-        <div class="text-xs" style="color: var(--yunmo-text-caption)">当前章节</div>
+        <div class="text-xs" style="color: var(--yunmo-text-caption)">
+          当前章节
+          <span v-if="status?.targetChapters > 0" class="opacity-60">/{{ status.targetChapters }}</span>
+        </div>
       </div>
       <div class="text-center p-2 rounded" style="background: var(--yunmo-paper-dark)">
         <div class="text-lg font-bold font-tabular" style="color: var(--yunmo-green)">{{ status?.totalWritten || 0 }}</div>
@@ -151,6 +160,26 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- 章数选择（仅在空闲时显示） -->
+    <div v-if="status?.state === 'IDLE'" class="mb-3">
+      <div class="flex items-center gap-2 text-xs" style="color: var(--yunmo-text-caption)">
+        <span>从第</span>
+        <span class="font-tabular font-semibold" style="color: var(--yunmo-ink)">{{ props.currentChapter }}</span>
+        <span>章开始，生成</span>
+        <input
+          v-model="targetChapterCount"
+          type="number"
+          min="1"
+          max="200"
+          placeholder="全部"
+          class="w-14 text-center rounded px-1 py-0.5 text-xs border"
+          style="border-color: var(--yunmo-border); background: var(--yunmo-paper-dark); color: var(--yunmo-ink)"
+        />
+        <span>章</span>
+        <span class="opacity-50">（留空写完为止）</span>
+      </div>
+    </div>
+
     <!-- 操作按钮 -->
     <div class="flex gap-2">
       <button
@@ -158,25 +187,28 @@ onBeforeUnmount(() => {
         class="yunmo-btn flex-1 text-sm"
         :disabled="actionLoading"
         @click="startMarathon"
-      >{{ actionLoading ? '启动中...' : '▶ 启动马拉松' }}</button>
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="inline mr-1 -mt-0.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        {{ actionLoading ? '启动中...' : (targetChapterCount ? `生成 ${targetChapterCount} 章` : '开始批量生成') }}
+      </button>
 
       <template v-if="status?.state === 'RUNNING'">
         <button class="yunmo-btn-outline flex-1 text-sm" :disabled="actionLoading" @click="pauseMarathon">
-          ⏸ 暂停
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="inline mr-1 -mt-0.5"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>暂停
         </button>
         <button class="yunmo-btn-outline text-sm" style="color: var(--yunmo-red); border-color: var(--yunmo-red)"
           :disabled="actionLoading" @click="stopMarathon">
-          ⏹ 停止
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="inline mr-1 -mt-0.5"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>停止
         </button>
       </template>
 
       <template v-if="status?.state === 'PAUSED'">
         <button class="yunmo-btn flex-1 text-sm" :disabled="actionLoading" @click="resumeMarathon">
-          ▶ 继续
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="inline mr-1 -mt-0.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>继续
         </button>
         <button class="yunmo-btn-outline text-sm" style="color: var(--yunmo-red); border-color: var(--yunmo-red)"
           :disabled="actionLoading" @click="stopMarathon">
-          ⏹ 停止
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="inline mr-1 -mt-0.5"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>停止
         </button>
       </template>
     </div>

@@ -15,13 +15,18 @@ const loading = ref(true)
 const activeTab = ref('overview')
 
 // 统计卡片数据
+const iconBook = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>'
+const iconPen = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>'
+const iconTarget = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
+const iconCheck = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>'
+
 const statCards = computed(() => {
   if (!stats.value) return []
   return [
-    { label: '总章节', value: stats.value.totalChapters || 0, icon: '📖', color: 'var(--yunmo-accent)' },
-    { label: '总字数', value: ((stats.value.totalWords || 0) / 10000).toFixed(1) + '万', icon: '✍️', color: 'var(--yunmo-accent-light)' },
-    { label: '活跃伏笔', value: stats.value.activeHooks || 0, icon: '🎯', color: 'var(--yunmo-gold)' },
-    { label: '已回收', value: stats.value.resolvedHooks || 0, icon: '✅', color: 'var(--yunmo-green)' },
+    { label: '总章节', value: stats.value.totalChapters || 0, icon: iconBook, color: 'var(--yunmo-accent)' },
+    { label: '总字数', value: ((stats.value.totalWords || 0) / 10000).toFixed(1) + '万', icon: iconPen, color: 'var(--yunmo-accent-light)' },
+    { label: '活跃伏笔', value: stats.value.activeHooks || 0, icon: iconTarget, color: 'var(--yunmo-gold)' },
+    { label: '已回收', value: stats.value.resolvedHooks || 0, icon: iconCheck, color: 'var(--yunmo-green)' },
   ]
 })
 
@@ -46,10 +51,10 @@ async function loadData() {
   loading.value = true
   try {
     const [s, f, a, g] = await Promise.all([
-      api.get(`/api/v1/novels/${novelId}/monitor/stats`).catch(() => null),
-      api.get(`/api/v1/novels/${novelId}/monitor/foreshadows`).catch(() => []),
-      api.get(`/api/v1/novels/${novelId}/monitor/audits`).catch(() => []),
-      api.get(`/api/v1/novels/${novelId}/monitor/characters/graph`).catch(() => ({ nodes: [], edges: [] })),
+      api.monitor.stats(novelId).catch(() => null),
+      api.monitor.foreshadows(novelId).catch(() => []),
+      api.monitor.audits(novelId).catch(() => []),
+      api.monitor.characterGraph(novelId).catch(() => ({ nodes: [], edges: [] })),
     ])
     stats.value = s
     foreshadows.value = f || []
@@ -90,7 +95,7 @@ onMounted(loadData)
           v-for="card in statCards" :key="card.label"
           class="yunmo-card p-4 text-center"
         >
-          <div class="text-2xl mb-1">{{ card.icon }}</div>
+          <div class="mb-1 flex justify-center" v-html="card.icon"></div>
           <div class="text-2xl font-bold font-tabular" :style="{ color: card.color }">
             {{ card.value }}
           </div>
@@ -146,7 +151,9 @@ onMounted(loadData)
             </div>
           </div>
           <div v-else class="empty-state">
-            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-accent)" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 4-8"/></svg>
+            </div>
             <p class="empty-state-desc">暂无章节数据</p>
           </div>
         </div>
@@ -201,7 +208,9 @@ onMounted(loadData)
             </tbody>
           </table>
           <div v-else class="empty-state">
-            <div class="empty-state-icon">🎯</div>
+            <div class="empty-state-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
             <p class="empty-state-desc">暂无伏笔记录</p>
           </div>
         </div>
@@ -249,7 +258,9 @@ onMounted(loadData)
             </div>
           </div>
           <div v-else class="empty-state">
-            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-accent)" stroke-width="1.5"><circle cx="9" cy="7" r="4"/><path d="M1 20c0-4 3-7 8-7s8 3 8 7"/><circle cx="17" cy="6" r="3"/><path d="M14 18c0-3 3-5 5-5s5 2 5 5"/></svg>
+            </div>
             <p class="empty-state-desc">暂无角色数据</p>
           </div>
         </div>

@@ -58,7 +58,7 @@ onMounted(async () => {
 async function selectGenre(gid) {
   genreId.value = gid
   try {
-    await api.novels.update(novelId, { genreId: gid })
+    await api.novels.update(novelId, { genre_id: gid })
     tabCompleted.value[0] = true
   } catch (e) {
     console.error('更新类型失败:', e)
@@ -100,10 +100,10 @@ function finish() {
     <!-- 头部 -->
     <header class="h-14 border-b border-[var(--yunmo-border)] flex items-center px-6 bg-[var(--yunmo-paper-light)] flex-shrink-0">
       <span class="text-xs cursor-pointer hover:text-[var(--yunmo-accent)] transition-fast mr-2"
-            style="color:var(--yunmo-text-caption)"
+           
             @click="router.push('/dashboard')">书房</span>
       <span class="text-xs mr-2" style="color:var(--yunmo-border)">/</span>
-      <span class="text-sm font-semibold" style="color:var(--yunmo-ink)">小说设定</span>
+      <span class="text-sm font-semibold">小说设定</span>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
@@ -138,8 +138,8 @@ function finish() {
       <div class="flex-1 overflow-y-auto p-8">
         <!-- Tab 0: 类型 -->
         <div v-if="activeTab === 0">
-          <h2 class="text-xl font-bold mb-2" style="color:var(--yunmo-ink)">选择小说类型</h2>
-          <p class="text-sm mb-6" style="color:var(--yunmo-text-caption)">类型将决定 AI 的写作风格和禁词规则</p>
+          <h2 class="text-xl font-bold mb-2">选择小说类型</h2>
+          <p class="text-sm mb-6">类型将决定 AI 的写作风格和禁词规则</p>
 
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div
@@ -155,15 +155,15 @@ function finish() {
               <div class="font-semibold text-sm" :style="genreId === g.id ? { color: 'var(--yunmo-accent)' } : { color: 'var(--yunmo-ink)' }">
                 {{ g.name }}
               </div>
-              <div class="text-xs mt-1" style="color:var(--yunmo-text-caption)">{{ g.desc }}</div>
+              <div class="text-xs mt-1">{{ g.desc }}</div>
             </div>
           </div>
         </div>
 
         <!-- Tab 1: 大纲 -->
         <div v-if="activeTab === 1">
-          <h2 class="text-xl font-bold mb-2" style="color:var(--yunmo-ink)">全书大纲</h2>
-          <p class="text-sm mb-4" style="color:var(--yunmo-text-caption)">
+          <h2 class="text-xl font-bold mb-2">全书大纲</h2>
+          <p class="text-sm mb-4">
             概述整部小说的主线剧情，AI 将据此规划章节。全书目标总字数不少于 <strong style="color:var(--yunmo-accent)">150万字</strong>。
           </p>
 
@@ -176,7 +176,7 @@ function finish() {
               @blur="saveOutline"
             />
             <div class="flex items-center justify-between mt-3">
-              <span class="text-xs" style="color:var(--yunmo-text-caption)">自动保存 · {{ outlineText.length }} 字</span>
+              <span class="text-xs">自动保存 · {{ outlineText.length }} 字</span>
               <a-button
                 type="primary"
                 :loading="generatingOutline"
@@ -199,7 +199,7 @@ function finish() {
       <div v-else />
 
       <div class="flex items-center gap-3">
-        <span class="text-xs" style="color:var(--yunmo-text-caption)">
+        <span class="text-xs">
           {{ activeTab + 1 }} / 2
         </span>
         <a-button

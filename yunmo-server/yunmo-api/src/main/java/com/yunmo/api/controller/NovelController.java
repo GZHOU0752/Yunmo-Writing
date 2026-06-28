@@ -228,7 +228,7 @@ public class NovelController {
 
             var response = provider.generate(
                 List.of(LLMMessage.user(prompt)),
-                LLMConfig.creative("deepseek-v4-pro")
+                LLMConfig.outline("deepseek-v4-pro")
             );
 
             String generatedOutline = response.content().trim();

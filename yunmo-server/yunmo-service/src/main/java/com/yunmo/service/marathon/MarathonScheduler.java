@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -53,8 +54,10 @@ public class MarathonScheduler {
             if (v == null) {
                 MarathonJob newJob = new MarathonJob(novelId, startChapter, targetChapters);
                 dailyCounts.put(novelId, 0);
-                newJob.addEvent(MarathonEvent.of("STARTED", startChapter, "马拉松创作已启动，从第" + startChapter + "章开始"));
+                newJob.addEvent(MarathonEvent.of("STARTED", startChapter, "马拉松创作已启动，从第" + (startChapter + 1) + "章开始"));
                 log.info("[Marathon] 启动: novel={}, startChapter={}, target={}", novelId, startChapter, targetChapters);
+                // 立即异步触发第一章生成，无需等cron
+                kickoff(newJob);
                 return newJob;
             }
             if (v.getState() == MarathonState.PAUSED) {
@@ -116,8 +119,8 @@ public class MarathonScheduler {
 
     // ==================== 定时循环 ====================
 
-    /** 写章循环 — 每30分钟触发 */
-    @Scheduled(cron = "${yunmo.marathon.cron:0 */30 * * * ?}")
+    /** 写章循环 — 每5分钟检查（实际写章受日产量和writing标志控制） */
+    @Scheduled(cron = "${yunmo.marathon.cron:0 */5 * * * ?}")
     public void writeCycle() {
         if (activeJobs.isEmpty()) return;
 
@@ -128,6 +131,11 @@ public class MarathonScheduler {
                 completeMarathon(job);
                 continue;
             }
+            // 防止与kickoff并发
+            if (job.isWriting()) {
+                log.debug("[Marathon] 上一章仍在生成中: novel={}", job.getNovelId());
+                continue;
+            }
             // 日产量检查
             int todayWritten = dailyCounts.getOrDefault(job.getNovelId(), 0);
             if (todayWritten >= maxChaptersPerDay) {
@@ -136,6 +144,28 @@ public class MarathonScheduler {
             }
             writeOneChapter(job);
         }
+    }
+
+    /** 启动后立即触发第一章生成（异步） */
+    public void kickoff(MarathonJob job) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 短暂延迟，确保HTTP响应已返回
+                Thread.sleep(2000);
+                if (job.getState() != MarathonState.RUNNING) return;
+                if (!job.canContinue()) return;
+                if (job.isWriting()) return;
+
+                int todayWritten = dailyCounts.getOrDefault(job.getNovelId(), 0);
+                if (todayWritten >= maxChaptersPerDay) {
+                    log.info("[Marathon] kickoff跳过: 已达日产量上限 novel={}", job.getNovelId());
+                    return;
+                }
+                writeOneChapter(job);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     /** 每日重置计数器 */
@@ -150,6 +180,9 @@ public class MarathonScheduler {
     private void writeOneChapter(MarathonJob job) {
         String novelId = job.getNovelId();
         int chapterNumber = job.getCurrentChapter() + 1;
+
+        // 标记正在写章，防止cron并发
+        job.setWriting(true);
 
         job.addEvent(MarathonEvent.of("CHAPTER_START", chapterNumber, "开始生成第" + chapterNumber + "章"));
         log.info("[Marathon] 开始写章: novel={}, chapter={}", novelId, chapterNumber);
@@ -195,6 +228,8 @@ public class MarathonScheduler {
         } catch (Exception e) {
             log.error("[Marathon] 章节生成异常: novel={}, chapter={}", novelId, chapterNumber, e);
             handleChapterFailure(job, chapterNumber, "异常: " + e.getMessage());
+        } finally {
+            job.setWriting(false);
         }
     }
 

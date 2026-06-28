@@ -42,6 +42,7 @@ body {
   font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
   -webkit-font-smoothing: antialiased;
 }
+button { font-family: inherit; }
 
 /* ===== 键盘焦点环 ===== */
 *:focus-visible {
@@ -90,6 +91,9 @@ h3 { font-size: 1.125rem; font-weight: 600; text-wrap: balance; }
 h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
 .text-body { font-size: 0.9375rem; line-height: 1.8; max-width: 70ch; }
 .text-caption { font-size: 0.8125rem; color: var(--yunmo-text-caption); }
+.text-accent { color: var(--yunmo-accent); }
+.text-ink { color: var(--yunmo-ink); }
+.text-secondary { color: var(--yunmo-text-secondary); }
 
 /* ===== 卡片 — 仅背景色区分层级，hover 才加阴影 ===== */
 .yunmo-card {
@@ -519,21 +523,15 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 .tilt-card {
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-style: preserve-3d;
-  perspective: 800px;
 }
 .tilt-card:hover {
-  transform: translateY(-2px) rotateX(1deg) rotateY(-1deg);
+  transform: translateY(-2px);
   box-shadow:
-    0 8px 30px rgba(31, 22, 12, 0.10),
-    0 2px 6px rgba(31, 22, 12, 0.05);
-}
-[data-theme="dark"] .tilt-card:hover {
-  box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.35),
-    0 2px 6px rgba(0, 0, 0, 0.2);
+    0 4px 16px rgba(31, 22, 12, 0.08),
+    0 1px 3px rgba(31, 22, 12, 0.04);
 }
 @media (prefers-reduced-motion: reduce) {
+  .tilt-card { transition: none; }
   .tilt-card:hover { transform: none; }
 }
 
@@ -599,6 +597,26 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 }
 .transition-fast {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ----- 路由页面过渡 ----- */
+.page-fade-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active { transition: none; }
 }
 
 /* ===== 排版增强 ===== */
@@ -1047,6 +1065,29 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   transition: transform 0.1s ease;
 }
 
+/* ----- 移动端底部安全区 ----- */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ----- 移动端面板滑入动画 ----- */
+.slide-up-enter-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.25s ease;
+}
+.slide-up-leave-active {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s ease;
+}
+.slide-up-enter-from {
+  transform: translateY(100%);
+  opacity: 0;
+}
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
 /* ----- 边界光：hover 时仅背景微亮，不使用边框 + 阴影组合 ----- */
 .glow-border {
   transition: background 0.3s ease;
@@ -1108,21 +1149,37 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   opacity: 0;
 }
 
-/* ----- 编辑器纸张阴影 ----- */
+/* ----- 编辑器纸张叠影 — 纸稿堆叠的书写台感 ----- */
 .editor-page {
+  position: relative;
   box-shadow:
-    0 1px 3px rgba(31, 22, 12, 0.04),
-    0 4px 12px rgba(31, 22, 12, 0.02),
-    0 0 0 1px rgba(212, 201, 181, 0.3);
+    0 1px 2px rgba(31, 22, 12, 0.06),
+    0 4px 8px rgba(31, 22, 12, 0.04),
+    0 0 0 1px rgba(212, 201, 181, 0.25);
   border-radius: 6px;
   background: var(--yunmo-paper-light);
-  min-height: 600px;
+  min-height: 60vh;
 }
-[data-theme="dark"] .editor-page {
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(58, 48, 40, 0.5);
+/* 底下垫纸 — 两层偏移，纸稿堆叠的微妙深度 */
+.editor-page::before,
+.editor-page::after {
+  content: "";
+  position: absolute;
+  inset: -4px 6px -6px 4px;
+  border-radius: 6px;
+  background: var(--yunmo-paper-light);
+  z-index: -1;
+  opacity: 0.6;
+  box-shadow: 0 1px 2px rgba(31, 22, 12, 0.04);
+}
+.editor-page::after {
+  inset: -8px 12px -10px 8px;
+  opacity: 0.35;
+}
+[data-theme="dark"] .editor-page::before,
+[data-theme="dark"] .editor-page::after {
+  background: var(--yunmo-paper-dark);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* ----- 可折叠面板头部 ----- */
@@ -1134,6 +1191,10 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   cursor: pointer;
   user-select: none;
   transition: opacity 0.2s ease;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  color: inherit;
 }
 .collapsible-header:hover {
   opacity: 0.75;

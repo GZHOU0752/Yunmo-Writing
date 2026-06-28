@@ -28,4 +28,9 @@ public record LLMConfig(
     public static LLMConfig precise(String model) {
         return new LLMConfig(model, 2048, 0.2, 0.85, 90);
     }
+
+    /** 大纲生成专用 — 全书规划需要更大输出空间 */
+    public static LLMConfig outline(String model) {
+        return new LLMConfig(model, 16384, 0.9, 0.92, 300, 0.2, 0.4);
+    }
 }

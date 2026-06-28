@@ -67,8 +67,8 @@ const wordProgress = computed(() => {
       <!-- 字数进度条 -->
       <div class="mb-3">
         <div class="flex items-center justify-between text-xs mb-1">
-          <span style="color:var(--yunmo-text-caption)">进度</span>
-          <span class="font-tabular" style="color:var(--yunmo-text-caption)">
+          <span>进度</span>
+          <span class="font-tabular">
             {{ Math.round(wordProgress) }}%
           </span>
         </div>
@@ -103,7 +103,7 @@ const wordProgress = computed(() => {
     <!-- 详情按钮 (hover浮现) -->
     <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-fast translate-y-1 group-hover:translate-y-0 z-[1]">
       <a-button size="small" type="text" @click.stop="emit('detail')">
-        <span class="text-sm tracking-wider" style="color:var(--yunmo-text-caption)">详情</span>
+        <span class="text-sm tracking-wider">详情</span>
       </a-button>
     </div>
   </div>

@@ -141,7 +141,7 @@ const isAppeared = computed(() =>
               {{ roleLabels[character.role] || character.role }}
             </a-tag>
           </div>
-          <div v-if="statusLabel" class="text-xs mt-0.5" style="color:var(--yunmo-text-caption)">
+          <div v-if="statusLabel" class="text-xs mt-0.5">
             {{ statusLabel }}
           </div>
         </div>

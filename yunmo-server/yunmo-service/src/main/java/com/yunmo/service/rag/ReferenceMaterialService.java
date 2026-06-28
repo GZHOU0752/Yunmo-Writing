@@ -2,10 +2,12 @@ package com.yunmo.service.rag;
 
 import com.yunmo.domain.entity.ReferenceMaterial;
 import com.yunmo.domain.repository.ReferenceMaterialRepository;
+import com.yunmo.service.style.StyleAnalysisService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 
@@ -20,15 +22,18 @@ public class ReferenceMaterialService {
     private final DocumentChunker chunker;
     private final EmbeddingService embeddingService;
     private final VectorStoreService vectorStore;
+    private final StyleAnalysisService styleAnalysisService;
 
     public ReferenceMaterialService(ReferenceMaterialRepository repo,
                                      DocumentChunker chunker,
                                      EmbeddingService embeddingService,
-                                     VectorStoreService vectorStore) {
+                                     VectorStoreService vectorStore,
+                                     StyleAnalysisService styleAnalysisService) {
         this.repo = repo;
         this.chunker = chunker;
         this.embeddingService = embeddingService;
         this.vectorStore = vectorStore;
+        this.styleAnalysisService = styleAnalysisService;
     }
 
     /** 列出小说的所有素材 */
@@ -87,6 +92,18 @@ public class ReferenceMaterialService {
             managed.setStatus("ready");
             repo.save(managed);
             log.info("素材索引完成: {}", fileName);
+
+            // 3. 自动提取文风特征 — 上传素材即分析，无需手动触发
+            try {
+                styleAnalysisService.analyzeStyle(novelId, content)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe(
+                        result -> log.info("文风自动分析完成: novel={}, file={}", novelId, fileName),
+                        err -> log.warn("文风自动分析失败: file={}, error={}", fileName, err.getMessage())
+                    );
+            } catch (Exception e) {
+                log.warn("文风自动分析触发失败: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.error("素材嵌入失败（素材已保存，可稍后重新索引）: {}", fileName, e);
             ReferenceMaterial managed = repo.findById(materialId).orElseThrow();

@@ -16,10 +16,8 @@ import ImportModal from '@/components/ImportModal.vue'
 import AIChatPanel from '@/components/AIChatPanel.vue'
 import CharacterProgressPanel from '@/components/CharacterProgressPanel.vue'
 import EventTimeline from '@/components/EventTimeline.vue'
-import StyleImitationPanel from '@/components/StyleImitationPanel.vue'
+
 import DeAIScoreBadge from '@/components/DeAIScoreBadge.vue'
-import HookPreviewPanel from '@/components/HookPreviewPanel.vue'
-import ChapterControlCard from '@/components/ChapterControlCard.vue'
 import MarathonControlPanel from '@/components/MarathonControlPanel.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
@@ -38,6 +36,9 @@ const leftTab = ref('chapters') // 'chapters' | 'outline' | 'relations'
 const searchOpen = ref(false)
 const importOpen = ref(false)
 const chapterSearchQuery = ref('')
+const mobilePanel = ref('none') // 'none' | 'chapters' | 'tools'
+const showMobileLeft = ref(false)
+const showMobileRight = ref(false)
 const refMaterialsRef = ref(null)
 const refMaterialsCount = computed(() => refMaterialsRef.value?.materials?.length || 0)
 // 角色列表
@@ -61,9 +62,7 @@ const focusMode = ref(false)
 const statsBarOpen = ref(true)
 const rightPanelSections = ref({
   ai: true,
-  control: false,
   deai: true,
-  hooks: true,
   discuss: false,
   references: true,
   characters: true,
@@ -100,6 +99,16 @@ watch(() => store.sseStatus, async (status) => {
       preloadAdjacentChapters()
     }
     nextTick(() => clearDraft())
+    // 生成完成后刷新章节缓存、角色和小说信息
+    try {
+      const ch = await api.chapters.get(novelId, selectedChapterNum.value)
+      if (ch) chapterCache.set(selectedChapterNum.value, ch)
+    } catch {}
+    loadCharacters()
+    try {
+      novelInfo.value = await api.novels.get(novelId)
+      currentWritingStyle.value = novelInfo.value?.writingStyle || ''
+    } catch {}
   }
 })
 
@@ -154,19 +163,6 @@ const discussNodeId = ref(null)
 // 小说信息（面包屑用）
 const novelInfo = ref(null)
 const currentWritingStyle = ref('')
-
-/** 文风更新回调 */
-async function handleStyleUpdated(styleData) {
-  try {
-    const styleSummary = styleData.analysis?.style_summary || styleData.analysis?.summary || ''
-    // 后端 analyze-style 已经自动保存到 novel.writingStyle
-    // 这里同步前端状态
-    currentWritingStyle.value = styleSummary
-    if (novelInfo.value) novelInfo.value.writingStyle = styleSummary
-  } catch (e) {
-    console.error('保存文风失败:', e)
-  }
-}
 
 /** AI 聊天插入文本到编辑器 */
 function handleChatInsert(text) {
@@ -444,7 +440,7 @@ useKeyboardShortcuts({
     <!-- 左栏折叠标签 -->
     <div
       v-if="leftCollapsed"
-      class="w-8 bg-[var(--yunmo-paper-light)] border-r border-[var(--yunmo-border)] flex flex-col items-center py-3 cursor-pointer hover:bg-[var(--yunmo-paper-dark)] transition-spring flex-shrink-0"
+      class="hidden md:flex w-8 bg-[var(--yunmo-paper-light)] border-r border-[var(--yunmo-border)] flex-col items-center py-3 cursor-pointer hover:bg-[var(--yunmo-paper-dark)] transition-spring flex-shrink-0"
       @click="leftCollapsed = false"
       title="展开章节列表"
     >
@@ -454,7 +450,9 @@ useKeyboardShortcuts({
     </div>
 
     <!-- 左栏：章节列表 / 大纲树 -->
-    <aside v-show="!leftCollapsed" class="w-56 bg-[var(--yunmo-paper-light)] border-r border-[var(--yunmo-border)] flex flex-col flex-shrink-0 transition-all duration-300">
+    <aside v-show="!leftCollapsed"
+      class="hidden md:flex w-56 bg-[var(--yunmo-paper-light)] border-r border-[var(--yunmo-border)] flex-col flex-shrink-0 transition-all duration-300"
+    >
       <!-- 折叠按钮 -->
       <div class="absolute z-10" style="right:-12px;top:50%;transform:translateY(-50%)">
         <button
@@ -470,30 +468,36 @@ useKeyboardShortcuts({
 
       <!-- 标签切换 -->
       <div class="flex border-b border-[var(--yunmo-border)] px-2">
-        <div
-          class="flex-1 text-center py-2.5 text-xs cursor-pointer transition-fast rounded-t"
+        <button
+          class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
           :class="leftTab === 'chapters'
             ? 'text-[var(--yunmo-accent)] font-semibold'
             : 'text-caption hover:text-[var(--yunmo-text-secondary)]'"
           :style="leftTab === 'chapters' ? { borderBottom: '2px solid var(--yunmo-accent)', marginBottom: '-1px' } : {}"
+          role="tab"
+          :aria-selected="leftTab === 'chapters'"
           @click="leftTab = 'chapters'"
-        >章 节</div>
-        <div
-          class="flex-1 text-center py-2.5 text-xs cursor-pointer transition-fast rounded-t"
+        >章 节</button>
+        <button
+          class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
           :class="leftTab === 'outline'
             ? 'text-[var(--yunmo-accent)] font-semibold'
             : 'text-caption hover:text-[var(--yunmo-text-secondary)]'"
           :style="leftTab === 'outline' ? { borderBottom: '2px solid var(--yunmo-accent)', marginBottom: '-1px' } : {}"
+          role="tab"
+          :aria-selected="leftTab === 'outline'"
           @click="leftTab = 'outline'"
-        >大 纲</div>
-        <div
-          class="flex-1 text-center py-2.5 text-xs cursor-pointer transition-fast rounded-t"
+        >大 纲</button>
+        <button
+          class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
           :class="leftTab === 'relations'
             ? 'text-[var(--yunmo-accent)] font-semibold'
             : 'text-caption hover:text-[var(--yunmo-text-secondary)]'"
           :style="leftTab === 'relations' ? { borderBottom: '2px solid var(--yunmo-accent)', marginBottom: '-1px' } : {}"
+          role="tab"
+          :aria-selected="leftTab === 'relations'"
           @click="leftTab = 'relations'"
-        >关 系</div>
+        >关 系</button>
       </div>
 
       <!-- 章节面板 -->
@@ -605,12 +609,12 @@ useKeyboardShortcuts({
         <!-- 面包屑 -->
         <div class="flex items-center gap-1.5 text-sm">
           <span class="text-xs cursor-pointer hover:text-[var(--yunmo-accent)] transition-fast"
-                style="color:var(--yunmo-text-caption)"
+               
                 @click="router.push('/dashboard')">
             书房
           </span>
           <span class="text-xs" style="color:var(--yunmo-border)">/</span>
-          <span class="text-xs font-medium truncate max-w-[120px]" style="color:var(--yunmo-ink)">
+          <span class="text-xs font-medium truncate max-w-[120px]">
             {{ novelInfo?.title || '未命名' }}
           </span>
           <span class="text-xs" style="color:var(--yunmo-border)">/</span>
@@ -650,15 +654,15 @@ useKeyboardShortcuts({
 
         <div class="flex-1" />
 
-        <span v-if="lastAutoSaved" class="text-xs font-tabular" style="color:var(--yunmo-text-caption)">草稿{{ lastAutoSaved }}</span>
+        <span v-if="lastAutoSaved" class="text-xs font-tabular">草稿{{ lastAutoSaved }}</span>
 
         <div class="w-px h-5 mx-1" style="background:var(--yunmo-border)" />
 
         <!-- 功能按钮 -->
-        <a-button size="small" type="text" class="toolbar-btn" @click="router.push(`/novels/${novelId}/read`)">阅读</a-button>
-        <a-button size="small" type="text" class="toolbar-btn" @click="handleOpenVersions">修订</a-button>
-        <a-button size="small" type="text" class="toolbar-btn" @click="copyChapter">复制</a-button>
-        <a-dropdown>
+        <a-button size="small" type="text" class="toolbar-btn hidden md:inline-flex" @click="router.push(`/novels/${novelId}/read`)">阅读</a-button>
+        <a-button size="small" type="text" class="toolbar-btn hidden md:inline-flex" @click="handleOpenVersions">修订</a-button>
+        <a-button size="small" type="text" class="toolbar-btn hidden md:inline-flex" @click="copyChapter">复制</a-button>
+        <a-dropdown class="hidden md:block">
           <a-button size="small" type="text" class="toolbar-btn">导出</a-button>
           <template #overlay>
             <a-menu @click="({ key }) => { try { api.export[key](novelId) } catch {} }">
@@ -667,8 +671,8 @@ useKeyboardShortcuts({
             </a-menu>
           </template>
         </a-dropdown>
-        <a-button size="small" type="text" class="toolbar-btn" @click="importOpen = true">导入</a-button>
-        <a-button size="small" type="text" class="toolbar-btn" @click="searchOpen = true">检索</a-button>
+        <a-button size="small" type="text" class="toolbar-btn hidden md:inline-flex" @click="importOpen = true">导入</a-button>
+        <a-button size="small" type="text" class="toolbar-btn hidden md:inline-flex" @click="searchOpen = true">检索</a-button>
 
         <!-- 专注模式 -->
         <a-button
@@ -696,7 +700,7 @@ useKeyboardShortcuts({
       </header>
 
       <!-- 编辑器区域 -->
-      <div class="flex-1 overflow-y-auto p-6 md:p-10">
+      <div class="flex-1 overflow-y-auto p-6 md:p-10 pb-20 md:pb-10">
         <div class="editor-page max-w-3xl mx-auto px-8 py-10">
           <ChapterEditor
             :key="editorKey"
@@ -722,7 +726,7 @@ useKeyboardShortcuts({
             </svg>
             <span class="text-xs">写作统计</span>
           </button>
-          <span class="text-xs font-tabular" style="color:var(--yunmo-text-caption)">
+          <span class="text-xs font-tabular">
             {{ (store.currentChapter?.wordCount || 0).toLocaleString() }} 字 · 第 {{ selectedChapterNum }} 章
           </span>
         </div>
@@ -735,7 +739,7 @@ useKeyboardShortcuts({
     <!-- 右栏折叠标签 -->
     <div
       v-if="rightCollapsed"
-      class="w-8 bg-[var(--yunmo-paper)] border-l border-[var(--yunmo-border)] flex flex-col items-center py-3 cursor-pointer hover:bg-[var(--yunmo-paper-dark)] transition-spring flex-shrink-0"
+      class="hidden md:flex w-8 bg-[var(--yunmo-paper)] border-l border-[var(--yunmo-border)] flex-col items-center py-3 cursor-pointer hover:bg-[var(--yunmo-paper-dark)] transition-spring flex-shrink-0"
       @click="rightCollapsed = false"
       title="展开工具面板"
     >
@@ -745,7 +749,7 @@ useKeyboardShortcuts({
     </div>
 
     <!-- 右栏：参考素材 + AI 助手 -->
-    <aside v-show="!rightCollapsed" class="w-72 border-l border-[var(--yunmo-border)] bg-[var(--yunmo-paper)] flex flex-col flex-shrink-0 overflow-hidden transition-all duration-300">
+    <aside v-show="!rightCollapsed" class="hidden md:flex w-72 border-l border-[var(--yunmo-border)] bg-[var(--yunmo-paper)] flex-col flex-shrink-0 overflow-hidden transition-all duration-300">
       <!-- 折叠按钮 -->
       <div class="absolute z-10" style="left:-12px;top:50%;transform:translateY(-50%)">
         <button
@@ -762,13 +766,13 @@ useKeyboardShortcuts({
       <div class="overflow-y-auto flex-1 p-4 flex flex-col gap-4">
         <!-- AI 生成面板 -->
         <div>
-          <div class="collapsible-header" @click="rightPanelSections.ai = !rightPanelSections.ai">
+          <button class="collapsible-header w-full text-left" @click="rightPanelSections.ai = !rightPanelSections.ai">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
                  :style="{ transform: rightPanelSections.ai ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
               <path d="M6 9l6 6 6-6" />
             </svg>
             <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">AI 生成</span>
-          </div>
+          </button>
           <div v-if="rightPanelSections.ai">
             <GeneratePanel
               :novel-id="novelId"
@@ -784,59 +788,24 @@ useKeyboardShortcuts({
           </div>
         </div>
 
-        <!-- 章节控制卡 -->
+        <!-- AI检测 -->
         <div>
-          <div class="collapsible-header" @click="rightPanelSections.control = !rightPanelSections.control">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
-                 :style="{ transform: rightPanelSections.control ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">控制卡</span>
-          </div>
-          <div v-if="rightPanelSections.control" class="mt-2">
-            <ChapterControlCard :card="store.chapterControlCard" :loading="store.sseStatus === 'generating'" />
-          </div>
-        </div>
-
-        <!-- 去AI味评分 -->
-        <div>
-          <div class="collapsible-header" @click="rightPanelSections.deai = !rightPanelSections.deai">
+          <button class="collapsible-header w-full text-left" @click="rightPanelSections.deai = !rightPanelSections.deai">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
                  :style="{ transform: rightPanelSections.deai ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
               <path d="M6 9l6 6 6-6" />
             </svg>
-            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">去AI味</span>
-          </div>
+            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">AI检测</span>
+          </button>
           <div v-if="rightPanelSections.deai" class="mt-2">
             <DeAIScoreBadge :diagnosis="store.antiAIDiagnosis" />
           </div>
         </div>
 
-        <!-- 钩子预览 -->
-        <div>
-          <div class="collapsible-header" @click="rightPanelSections.hooks = !rightPanelSections.hooks">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
-                 :style="{ transform: rightPanelSections.hooks ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">钩子编排</span>
-          </div>
-          <div v-if="rightPanelSections.hooks" class="mt-2">
-            <HookPreviewPanel :hook-selection="store.hookSelection" />
-          </div>
-        </div>
-
         <!-- AI 讨论入口 -->
         <button class="seal-btn w-full text-sm tracking-wider" @click="outlineDiscussOpen = true">
-          与 AI 讨论剧情
+          讨论剧情
         </button>
-
-        <!-- 文风模仿 -->
-        <StyleImitationPanel
-          :novel-id="novelId"
-          :current-style="currentWritingStyle"
-          @style-updated="handleStyleUpdated"
-        />
 
         <!-- AI 写作助手 -->
         <AIChatPanel
@@ -848,14 +817,14 @@ useKeyboardShortcuts({
 
         <!-- 参考素材 -->
         <div>
-          <div class="collapsible-header" @click="rightPanelSections.references = !rightPanelSections.references">
+          <button class="collapsible-header w-full text-left" @click="rightPanelSections.references = !rightPanelSections.references">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
                  :style="{ transform: rightPanelSections.references ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
               <path d="M6 9l6 6 6-6" />
             </svg>
             <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">参考素材</span>
-            <span v-if="refMaterialsCount > 0" class="text-[10px] ml-auto" style="color:var(--yunmo-text-caption)">{{ refMaterialsCount }} 个</span>
-          </div>
+            <span v-if="refMaterialsCount > 0" class="text-[10px] ml-auto">{{ refMaterialsCount }} 个</span>
+          </button>
           <div v-if="rightPanelSections.references">
             <ReferenceMaterialList ref="refMaterialsRef" :novel-id="novelId" />
           </div>
@@ -863,14 +832,14 @@ useKeyboardShortcuts({
 
         <!-- 角色列表 -->
         <div>
-          <div class="collapsible-header" @click="rightPanelSections.characters = !rightPanelSections.characters">
+          <button class="collapsible-header w-full text-left" @click="rightPanelSections.characters = !rightPanelSections.characters">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
                  :style="{ transform: rightPanelSections.characters ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
               <path d="M6 9l6 6 6-6" />
             </svg>
             <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">角 色</span>
-            <span class="text-[10px] ml-auto" style="color:var(--yunmo-text-caption)">{{ characters.length }} 位</span>
-          </div>
+            <span class="text-[10px] ml-auto">{{ characters.length }} 位</span>
+          </button>
           <div v-if="rightPanelSections.characters">
             <div v-if="characters.length === 0" class="text-caption text-xs py-3 text-center">
               尚无角色，生成章节后自动提取
@@ -894,15 +863,15 @@ useKeyboardShortcuts({
 
         <!-- 马拉松创作 -->
         <div>
-          <div class="collapsible-header" @click="rightPanelSections.marathon = !rightPanelSections.marathon">
+          <button class="collapsible-header w-full text-left" @click="rightPanelSections.marathon = !rightPanelSections.marathon">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yunmo-text-caption)" stroke-width="2.5"
                  :style="{ transform: rightPanelSections.marathon ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }">
               <path d="M6 9l6 6 6-6" />
             </svg>
-            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">马拉松</span>
-          </div>
+            <span class="text-xs font-semibold tracking-wide" style="color:var(--yunmo-accent)">批量生成</span>
+          </button>
           <div v-if="rightPanelSections.marathon" class="mt-2">
-            <MarathonControlPanel :novel-id="novelId" />
+            <MarathonControlPanel :novel-id="novelId" :current-chapter="selectedChapterNum" />
           </div>
         </div>
       </div>
@@ -993,5 +962,110 @@ useKeyboardShortcuts({
       />
     </a-modal>
 
+
+    <!-- 移动端底部导航栏 -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[var(--yunmo-paper-light)] border-t border-[var(--yunmo-border)] flex items-center justify-around px-2 z-50 safe-area-bottom">
+      <button
+        class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-md transition-fast"
+        :class="mobilePanel === 'chapters' ? 'text-[var(--yunmo-accent)]' : 'text-[var(--yunmo-text-caption)]'"
+        @click="mobilePanel = mobilePanel === 'chapters' ? 'none' : 'chapters'; leftCollapsed = mobilePanel !== 'chapters'"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="text-[10px] leading-none">章节</span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-md transition-fast"
+        :class="mobilePanel === 'tools' ? 'text-[var(--yunmo-accent)]' : 'text-[var(--yunmo-text-caption)]'"
+        @click="mobilePanel = mobilePanel === 'tools' ? 'none' : 'tools'; rightCollapsed = mobilePanel !== 'tools'"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9l2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9l2.83-2.83"/></svg>
+        <span class="text-[10px] leading-none">工具</span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-md transition-fast"
+        :class="store.sseStatus === 'generating' || store.sseStatus === 'reviewing' ? 'text-[var(--yunmo-red)]' : 'text-[var(--yunmo-accent)]'"
+        @click="generate"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/></svg>
+        <span class="text-[10px] leading-none">{{ store.sseStatus === 'generating' || store.sseStatus === 'reviewing' ? '停止' : '生成' }}</span>
+      </button>
+      <button
+        class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-md transition-fast"
+        style="color:var(--yunmo-text-caption)"
+        @click="async () => { try { await store.saveChapter(novelId, selectedChapterNum, store.currentChapter?.content || ''); clearDraft(); message.success('已保存') } catch { message.error('保存失败') } }"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span class="text-[10px] leading-none">保存</span>
+      </button>
+    </nav>
+
+    <!-- 移动端章节列表面板（从底部滑入） -->
+    <Transition name="slide-up">
+      <div v-if="mobilePanel === 'chapters'" class="md:hidden fixed inset-x-0 bottom-14 top-0 z-40 bg-[var(--yunmo-paper-light)] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--yunmo-paper-light)] border-b border-[var(--yunmo-border)] p-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold" style="color:var(--yunmo-accent)">章节列表</h3>
+          <a-button size="small" type="text" @click="mobilePanel = 'none'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </a-button>
+        </div>
+        <!-- 移动端标签切换 -->
+        <div class="flex border-b border-[var(--yunmo-border)] px-2">
+          <button v-for="tab in [{k:'chapters',l:'章 节'},{k:'outline',l:'大 纲'},{k:'relations',l:'关 系'}]" :key="tab.k"
+            class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
+            :class="leftTab === tab.k ? 'text-[var(--yunmo-accent)] font-semibold' : 'text-caption'"
+            :style="leftTab === tab.k ? { borderBottom: '2px solid var(--yunmo-accent)', marginBottom: '-1px' } : {}"
+            role="tab" :aria-selected="leftTab === tab.k" @click="leftTab = tab.k"
+          >{{ tab.l }}</button>
+        </div>
+        <div class="p-3">
+          <div v-if="leftTab === 'chapters'">
+            <a-input v-model:value="chapterSearchQuery" placeholder="搜索章节..." size="small" allow-clear class="mb-2" />
+            <div class="space-y-1">
+              <div v-for="ch in filteredChapters" :key="ch.chapterNumber"
+                class="px-3 py-2.5 rounded-md cursor-pointer text-sm"
+                :class="selectedChapterNum === ch.chapterNumber ? 'bg-[var(--yunmo-accent)] text-[var(--yunmo-paper-light)]' : 'hover:bg-[var(--yunmo-paper-dark)]'"
+                @click="selectedChapterNum = ch.chapterNumber; mobilePanel = 'none'"
+              >
+                <div class="flex items-center justify-between">
+                  <span class="truncate">{{ ch.title || '第' + ch.chapterNumber + '章' }}</span>
+                  <span class="text-xs opacity-55">{{ (ch.wordCount || 0).toLocaleString() }} 字</span>
+                </div>
+              </div>
+              <div v-if="filteredChapters.length === 0" class="text-caption text-xs p-2 text-center">暂无章节</div>
+            </div>
+          </div>
+          <div v-if="leftTab === 'outline'">
+            <OutlinePanel :novel-id="novelId" :chapters="store.chapters" :active-chapter="selectedChapterNum"
+              @select-chapter="(cn) => { selectedChapterNum = cn; leftTab = 'chapters'; mobilePanel = 'none' }" />
+          </div>
+          <div v-if="leftTab === 'relations'">
+            <CharacterProgressPanel :novel-id="novelId" :chapters="store.chapters" :current-chapter="selectedChapterNum" />
+            <hr class="ink-divider my-3" />
+            <EventTimeline :chapters="store.chapters" :current-chapter="selectedChapterNum"
+              @select-chapter="(cn) => { selectedChapterNum = cn; mobilePanel = 'none' }" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- 移动端工具面板（从底部滑入） -->
+    <Transition name="slide-up">
+      <div v-if="mobilePanel === 'tools'" class="md:hidden fixed inset-x-0 bottom-14 top-0 z-40 bg-[var(--yunmo-paper)] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--yunmo-paper)] border-b border-[var(--yunmo-border)] p-3 flex items-center justify-between">
+          <h3 class="text-sm font-semibold" style="color:var(--yunmo-accent)">工具面板</h3>
+          <a-button size="small" type="text" @click="mobilePanel = 'none'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </a-button>
+        </div>
+        <div class="p-4 flex flex-col gap-4">
+          <GeneratePanel :novel-id="novelId" :chapter-number="selectedChapterNum" :sse-status="store.sseStatus"
+            :streamed-text="store.streamedText" :quality-report="store.qualityReport" :checkpoint="store.checkpoint"
+            :writing-style="currentWritingStyle" @generate="generate" @clear-checkpoint="clearCheckpoint" />
+          <AIChatPanel :novel-id="novelId" :chapter-content="store.currentChapter?.content || ''"
+            :chapter-number="selectedChapterNum" @insert-text="handleChatInsert" />
+          <ReferenceMaterialList :novel-id="novelId" />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
