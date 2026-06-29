@@ -1,5 +1,5 @@
 # ===== 阶段1：构建 =====
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM docker.1ms.run/library/maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ COPY yunmo-server/ .
 RUN mvn clean package -DskipTests -B -q
 
 # ===== 阶段2：运行 =====
-FROM eclipse-temurin:17-jre
+FROM docker.1ms.run/library/eclipse-temurin:17-jre
 
 WORKDIR /app
 
