@@ -34,7 +34,7 @@ public class ChatService {
     public ChatService(ChatModelFactory modelFactory,
                        ChapterRepository chapterRepo,
                        NovelRepository novelRepo) {
-        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-v4-pro");
+        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-chat");
         this.chapterRepo = chapterRepo;
         this.novelRepo = novelRepo;
     }

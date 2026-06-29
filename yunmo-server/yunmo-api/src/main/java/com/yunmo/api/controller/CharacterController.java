@@ -15,8 +15,6 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -50,7 +48,6 @@ public class CharacterController {
     }
 
     @GetMapping
-    @Cacheable(value = "characters", key = "#novelId")
     public Mono<List<Character>> list(@PathVariable String novelId) {
         return Mono.fromCallable(() ->
                 characterRepo.findByNovelIdOrderByImportanceDesc(novelId)
@@ -83,7 +80,6 @@ public class CharacterController {
     }
 
     @PatchMapping("/{id}")
-    @CacheEvict(value = "characters", key = "#novelId")
     public Mono<ResponseEntity<Character>> update(
             @PathVariable String novelId, @PathVariable String id, @RequestBody Map<String, Object> body) {
         return Mono.fromCallable(() ->
@@ -115,7 +111,6 @@ public class CharacterController {
     }
 
     @DeleteMapping("/{id}")
-    @CacheEvict(value = "characters", key = "#novelId")
     public Mono<ResponseEntity<Void>> delete(@PathVariable String novelId, @PathVariable String id) {
         return Mono.fromCallable(() -> {
             var c = characterRepo.findById(id);

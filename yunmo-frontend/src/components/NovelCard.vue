@@ -33,22 +33,11 @@ const wordProgress = computed(() => {
     @click="emit('click')"
   >
     <!-- 宣纸纹理底纹 (hover时显现) -->
-    <div
-      class="absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500 pointer-events-none"
-      style="
-        background-image: repeating-linear-gradient(
-          0deg,
-          transparent,
-          transparent 3px,
-          rgba(139, 58, 58, 0.15) 3px,
-          rgba(139, 58, 58, 0.15) 5px
-        );
-      "
-    />
+    <div class="absolute inset-0 opacity-0 group-hover:opacity-[0.025] transition-opacity duration-500 pointer-events-none card-noise" />
 
     <div class="relative z-[1]">
       <!-- 标题 -->
-      <h3 class="text-lg font-semibold truncate transition-colors duration-300 group-hover:text-[var(--yunmo-accent)] pr-16">
+      <h3 class="text-lg font-semibold truncate transition-colors duration-300 group-hover:text-[var(--yunmo-accent)]">
         {{ novel.title }}
       </h3>
 

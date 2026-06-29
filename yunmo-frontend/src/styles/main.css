@@ -35,11 +35,23 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* 墨色文本选中 — 朱砂底色 */
+::selection {
+  background: rgba(139, 58, 58, 0.18);
+  color: var(--yunmo-ink);
+}
+[data-theme="dark"] ::selection {
+  background: rgba(201, 105, 90, 0.25);
+  color: var(--yunmo-ink);
+}
+
 body {
   background: var(--yunmo-paper);
   color: var(--yunmo-ink);
   font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
   -webkit-font-smoothing: antialiased;
+  text-wrap: pretty;
 }
 button { font-family: inherit; }
 
@@ -103,8 +115,8 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
               transform 0.3s cubic-bezier(0.16,1,0.3,1);
 }
 .yunmo-card:hover {
-  box-shadow: 0 4px 16px rgba(31, 22, 12, 0.10), 0 1px 3px rgba(31, 22, 12, 0.04);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(31, 22, 12, 0.08), 0 1px 3px rgba(31, 22, 12, 0.03);
+  transform: translateY(-2px);
 }
 @media (prefers-reduced-motion: reduce) {
   .yunmo-card { transition: none; }
@@ -421,6 +433,7 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 ::-webkit-scrollbar-thumb {
   background: var(--yunmo-accent-light);
   border-radius: 3px;
+  transition: background 0.2s ease;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--yunmo-accent); }
 
@@ -590,6 +603,12 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   opacity: 1;
 }
 
+/* ===== 卡片宣纸噪点纹理 ===== */
+.card-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 64px 64px;
+}
+
 /* ===== 过渡工具类 ===== */
 .transition-spring {
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -677,9 +696,10 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 .seal-btn:active {
-  transform: rotate(0deg) scale(0.97);
-  box-shadow: 0 1px 4px rgba(139, 58, 58, 0.15);
-  transition: all 0.1s ease;
+  transform: rotate(0deg) scale(0.96);
+  box-shadow: 0 1px 2px rgba(139, 58, 58, 0.1),
+              inset 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.08s ease;
 }
 .seal-btn:disabled {
   background: #c4bfb2;
@@ -814,7 +834,7 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   --yunmo-amber: #c4a06c;            /* 琥珀暖 */
 
   --yunmo-text-secondary: #bfb09a;   /* 次级文字 — 提亮 10% */
-  --yunmo-text-caption: #9a8a7a;     /* 说明文字 — 提亮 10% */
+  --yunmo-text-caption: #b5a595;     /* 说明文字 — WCAG AA 4.5:1 */
   --yunmo-couplet: #e8ddd0;          /* 焦墨反色 */
 
   --ant-primary-1: #252018;
@@ -833,7 +853,7 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 }
 
 [data-theme="dark"] .yunmo-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 [data-theme="dark"] .toolbar-btn:hover {
@@ -933,23 +953,24 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 [data-theme="dark"] .ant-input::placeholder,
 [data-theme="dark"] .ant-input-password::placeholder,
 [data-theme="dark"] textarea::placeholder {
-  color: #6a5a4a !important;
+  color: #8a7a6a !important;
 }
 
 [data-theme="dark"] .ant-tag {
   color: #d4c8b8;
+  border-color: transparent;
 }
 
 [data-theme="dark"] .ant-badge-status-text {
-  color: #b0a090 !important;
+  color: #c4b8a8 !important;
 }
 
 [data-theme="dark"] .ant-empty-description {
-  color: #8a7a6a;
+  color: #b0a090;
 }
 
 [data-theme="dark"] .ant-select-selection-placeholder {
-  color: #6a5a4a;
+  color: #8a7a6a;
 }
 
 /* ============================================
@@ -1000,22 +1021,29 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   text-align: center;
 }
 .empty-state-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  opacity: 0.35;
+  font-size: 2.75rem;
+  margin-bottom: 1.25rem;
+  opacity: 0.3;
   color: var(--yunmo-accent);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.empty-state:hover .empty-state-icon {
+  opacity: 0.5;
+  transform: translateY(-3px);
 }
 .empty-state-title {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--yunmo-ink);
   margin-bottom: 0.5rem;
+  text-wrap: balance;
 }
 .empty-state-desc {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--yunmo-text-caption);
-  max-width: 28ch;
+  max-width: 30ch;
   line-height: 1.8;
+  text-wrap: balance;
 }
 
 /* ----- 呼吸脉冲（弱版本，仅透明度） ----- */
@@ -1042,13 +1070,6 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-}
-
-/* ----- 按钮按压反馈 ----- */
-.yunmo-btn:active,
-.seal-btn:active {
-  transform: scale(0.97);
-  transition: transform 0.1s ease;
 }
 
 /* ----- 移动端底部安全区 ----- */
@@ -1158,44 +1179,47 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
 
 /* ----- Diff 视图 ----- */
 .diff-added {
-  background: rgba(90, 122, 90, 0.12);
+  background: rgba(90, 122, 90, 0.14);
   color: #2d5a2d;
-  border-left: 2px solid var(--yunmo-green);
+  border-radius: 3px;
 }
 .diff-removed {
-  background: rgba(179, 68, 58, 0.12);
+  background: rgba(179, 68, 58, 0.14);
   color: #8b2020;
   text-decoration: line-through;
-  opacity: 0.7;
-  border-left: 2px solid var(--yunmo-red);
+  opacity: 0.75;
+  border-radius: 3px;
 }
 
-/* ----- 编辑器纸张叠影 — 纸稿堆叠的书写台感 ----- */
+/* ----- 编辑器纸张叠影 — 三层纸稿堆叠的书写台感 ----- */
 .editor-page {
   position: relative;
-  box-shadow:
-    0 1px 2px rgba(31, 22, 12, 0.06),
-    0 4px 8px rgba(31, 22, 12, 0.04),
-    0 0 0 1px rgba(212, 201, 181, 0.25);
   border-radius: 6px;
   background: var(--yunmo-paper-light);
   min-height: 60vh;
+  box-shadow:
+    0 1px 2px rgba(31, 22, 12, 0.05),
+    0 6px 12px rgba(31, 22, 12, 0.04),
+    0 0 0 1px rgba(212, 201, 181, 0.2);
 }
-/* 底下垫纸 — 两层偏移，纸稿堆叠的微妙深度 */
+/* 底下垫纸 — 三层微偏移 */
 .editor-page::before,
 .editor-page::after {
   content: "";
   position: absolute;
-  inset: -4px 6px -6px 4px;
+  inset: -5px 8px -7px 5px;
   border-radius: 6px;
   background: var(--yunmo-paper-light);
   z-index: -1;
-  opacity: 0.6;
-  box-shadow: 0 1px 2px rgba(31, 22, 12, 0.04);
+  opacity: 0.55;
+  box-shadow: 0 1px 3px rgba(31, 22, 12, 0.03),
+              0 0 0 1px rgba(212, 201, 181, 0.15);
 }
 .editor-page::after {
-  inset: -8px 12px -10px 8px;
-  opacity: 0.35;
+  inset: -10px 14px -12px 10px;
+  opacity: 0.3;
+  box-shadow: 0 1px 2px rgba(31, 22, 12, 0.02),
+              0 0 0 1px rgba(212, 201, 181, 0.1);
 }
 [data-theme="dark"] .editor-page::before,
 [data-theme="dark"] .editor-page::after {

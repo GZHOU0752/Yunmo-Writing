@@ -104,7 +104,7 @@ async function handleLogout() {
     </div>
 
     <!-- 危险操作 -->
-    <div class="yunmo-card p-5 mb-4" style="border-color:var(--yunmo-red)">
+    <div class="yunmo-card p-5 mb-4" style="box-shadow:inset 0 0 0 1px rgba(179,68,58,0.2)">
       <h3 class="text-sm font-semibold mb-1" style="color:var(--yunmo-red)">注销账号</h3>
       <p class="text-xs mb-3">注销后所有作品、章节、设定将永久删除，不可恢复。</p>
       <a-popconfirm

@@ -8,8 +8,6 @@ import com.yunmo.domain.repository.ChapterRepository;
 import com.yunmo.domain.repository.ChapterVersionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -76,7 +74,6 @@ public class ChapterController {
     }
 
     @GetMapping("/{chapterNumber}")
-    @Cacheable(value = "chapters", key = "#novelId + ':' + #chapterNumber", unless = "#result == null || !#result.statusCode.is2xxSuccessful()")
     public Mono<ResponseEntity<Chapter>> get(
             @PathVariable String novelId, @PathVariable int chapterNumber) {
         return Mono.fromCallable(() -> {
@@ -89,7 +86,6 @@ public class ChapterController {
     }
 
     @PatchMapping("/{chapterNumber}")
-    @CacheEvict(value = "chapters", key = "#novelId + ':' + #chapterNumber")
     public Mono<ResponseEntity<Chapter>> update(
             @PathVariable String novelId, @PathVariable int chapterNumber,
             @RequestBody Map<String, Object> body) {
@@ -142,7 +138,6 @@ public class ChapterController {
     }
 
     @DeleteMapping("/{chapterNumber}")
-    @CacheEvict(value = "chapters", key = "#novelId + ':' + #chapterNumber")
     public Mono<ResponseEntity<Void>> delete(
             @PathVariable String novelId, @PathVariable int chapterNumber) {
         return Mono.fromCallable(() -> {

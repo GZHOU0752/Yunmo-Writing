@@ -1,11 +1,9 @@
 <script setup>
 /**
- * 左侧边栏 — 章节列表 / 大纲树 / 关系图
+ * 左侧边栏 — 章节列表 / 大纲树
  * 大纲支持展开为全屏面板
  */
 import OutlinePanel from '@/components/outline/OutlinePanel.vue'
-import CharacterProgressPanel from '@/components/CharacterProgressPanel.vue'
-import EventTimeline from '@/components/EventTimeline.vue'
 import WriteChapterList from './WriteChapterList.vue'
 
 const props = defineProps({
@@ -39,7 +37,7 @@ defineExpose({ leftTab })
     <!-- 标签切换 -->
     <div class="flex border-b border-[var(--yunmo-border)] px-2">
       <button
-        v-for="tab in [{ k: 'chapters', l: '章 节' }, { k: 'outline', l: '大 纲' }, { k: 'relations', l: '关 系' }]"
+        v-for="tab in [{ k: 'chapters', l: '章 节' }, { k: 'outline', l: '大 纲' }]"
         :key="tab.k"
         class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
         :class="leftTab === tab.k
@@ -93,21 +91,6 @@ defineExpose({ leftTab })
         :chapters="$attrs.chapters || []"
         :active-chapter="selectedChapterNum"
         @select-chapter="(cn) => { emit('update:selectedChapterNum', cn); leftTab = 'chapters' }"
-      />
-    </div>
-
-    <!-- 关系面板 -->
-    <div v-if="leftTab === 'relations'" class="flex-1 overflow-y-auto p-3 space-y-4">
-      <CharacterProgressPanel
-        :novel-id="novelId"
-        :chapters="$attrs.chapters || []"
-        :current-chapter="selectedChapterNum"
-      />
-      <hr class="ink-divider" />
-      <EventTimeline
-        :chapters="$attrs.chapters || []"
-        :current-chapter="selectedChapterNum"
-        @select-chapter="(cn) => emit('update:selectedChapterNum', cn)"
       />
     </div>
   </aside>

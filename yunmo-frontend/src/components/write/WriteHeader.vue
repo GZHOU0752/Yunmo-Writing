@@ -95,7 +95,7 @@ defineExpose({ syncEditingTitle })
 </script>
 
 <template>
-  <header class="h-11 border-b border-[var(--yunmo-border)] flex items-center px-3 gap-2 bg-[var(--yunmo-paper-light)] flex-shrink-0 text-sm">
+  <header class="h-12 border-b border-[var(--yunmo-border)] flex items-center px-4 gap-3 bg-[var(--yunmo-paper-light)] flex-shrink-0 text-sm">
     <!-- 左侧：面包屑 + 标题 -->
     <div class="flex items-center gap-1.5 min-w-0">
       <button class="toolbar-btn !px-1.5 !py-0.5 text-xs" @click="router.push('/dashboard')">
@@ -142,12 +142,12 @@ defineExpose({ syncEditingTitle })
       <span v-if="lastAutoSaved" class="text-[10px] font-tabular text-caption mr-1">{{ lastAutoSaved }}</span>
 
       <!-- 撤销/重做 -->
-      <button class="toolbar-btn !p-1.5" title="撤销 (Ctrl+Z)" @click="$editor?.chain().focus().undo().run()">
+      <button class="toolbar-btn !p-2" title="撤销 (Ctrl+Z)" @click="$editor?.chain().focus().undo().run()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
         </svg>
       </button>
-      <button class="toolbar-btn !p-1.5" title="重做 (Ctrl+Shift+Z)">
+      <button class="toolbar-btn !p-2" title="重做 (Ctrl+Shift+Z)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
         </svg>
@@ -156,14 +156,14 @@ defineExpose({ syncEditingTitle })
       <div class="w-px h-4 mx-1" style="background:var(--yunmo-border)" />
 
       <!-- 查找替换 -->
-      <button class="toolbar-btn !p-1.5" title="查找替换 (Ctrl+F)" @click="emit('open-search')">
+      <button class="toolbar-btn !p-2" title="查找替换 (Ctrl+F)" @click="emit('open-search')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       </button>
 
       <!-- 导入 -->
-      <button class="toolbar-btn !p-1.5" title="导入文稿" @click="emit('open-import')">
+      <button class="toolbar-btn !p-2" title="导入文稿" @click="emit('open-import')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
         </svg>
@@ -171,7 +171,7 @@ defineExpose({ syncEditingTitle })
 
       <!-- 导出下拉 -->
       <a-dropdown class="hidden md:block">
-        <button class="toolbar-btn !p-1.5" title="导出">
+        <button class="toolbar-btn !p-2" title="导出">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
           </svg>
@@ -189,21 +189,21 @@ defineExpose({ syncEditingTitle })
       <div class="w-px h-4 mx-1" style="background:var(--yunmo-border)" />
 
       <!-- 版本历史 -->
-      <button class="toolbar-btn !p-1.5" title="版本历史" @click="emit('open-versions')">
+      <button class="toolbar-btn !p-2" title="版本历史" @click="emit('open-versions')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
         </svg>
       </button>
 
       <!-- 复制 -->
-      <button class="toolbar-btn !p-1.5" title="复制全文" @click="copyChapter">
+      <button class="toolbar-btn !p-2" title="复制全文" @click="copyChapter">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
       </button>
 
       <!-- 阅读模式 -->
-      <button class="toolbar-btn !p-1.5" title="阅读模式" @click="router.push(`/novels/${novelId}/read`)">
+      <button class="toolbar-btn !p-2" title="阅读模式" @click="router.push(`/novels/${novelId}/read`)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </svg>
@@ -213,7 +213,7 @@ defineExpose({ syncEditingTitle })
 
       <!-- 专注模式 -->
       <button
-        class="toolbar-btn !p-1.5"
+        class="toolbar-btn !p-2"
         :class="{ '!text-[var(--yunmo-accent)]': focusMode }"
         title="专注模式 (Ctrl+\\)"
         @click="emit('toggle-focus-mode')"

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { message } from 'ant-design-vue'
 
@@ -102,7 +102,17 @@ async function stopMarathon() {
 
 onMounted(() => {
   fetchStatus()
-  pollTimer = setInterval(fetchStatus, 15000)
+  // 运行时 15s 轮询，空闲时 60s 轮询
+  pollTimer = setInterval(() => {
+    fetchStatus()
+  }, 15000)
+})
+
+// 状态变化时调整轮询频率
+watch(() => status.value?.state, (state) => {
+  clearInterval(pollTimer)
+  const interval = state === 'RUNNING' ? 15000 : 60000
+  pollTimer = setInterval(fetchStatus, interval)
 })
 
 onBeforeUnmount(() => {

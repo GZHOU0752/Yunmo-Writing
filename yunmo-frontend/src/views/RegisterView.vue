@@ -36,8 +36,8 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="min-h-[100dvh] flex items-center justify-center bg-[var(--yunmo-paper-dark)]">
-    <div class="yunmo-card p-10 w-full max-w-sm">
+  <div class="min-h-[100dvh] flex items-center justify-center" style="background:linear-gradient(180deg, var(--yunmo-paper) 0%, var(--yunmo-paper-dark) 100%)">
+    <div class="yunmo-card p-10 w-full max-w-sm" style="box-shadow:0 8px 32px rgba(31,22,12,0.08),0 2px 8px rgba(0,0,0,0.03)">
       <h1 class="text-2xl font-bold text-center mb-6" style="color:var(--yunmo-accent)">注册</h1>
 
       <div class="flex flex-col gap-4">
@@ -59,7 +59,7 @@ async function handleRegister() {
                             @keyup.enter="handleRegister" />
         </div>
 
-        <div v-if="error" class="text-sm text-center" style="color:var(--yunmo-red)">{{ error }}</div>
+        <div v-if="error" class="text-sm text-center py-2 rounded" style="background:rgba(179,68,58,0.06);color:var(--yunmo-red)">{{ error }}</div>
 
         <a-button type="primary" size="large" block :loading="loading" @click="handleRegister">
           注册并开始写作

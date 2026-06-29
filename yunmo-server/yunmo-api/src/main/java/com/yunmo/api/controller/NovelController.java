@@ -15,8 +15,6 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;
 import com.yunmo.service.NovelCascadeService;
 import com.yunmo.service.style.StyleAnalysisService;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -75,7 +73,6 @@ public class NovelController {
     }
 
     @GetMapping("/{id}")
-    @Cacheable(value = "novels", key = "#id", unless = "#result == null || !#result.statusCode.is2xxSuccessful()")
     public Mono<ResponseEntity<Novel>> get(@PathVariable String id) {
         return Mono.fromCallable(() ->
                 novelRepo.findById(id)
@@ -101,7 +98,6 @@ public class NovelController {
     }
 
     @PatchMapping("/{id}")
-    @CacheEvict(value = "novels", key = "#id")
     public Mono<ResponseEntity<Novel>> update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         return Mono.fromCallable(() ->
                 novelRepo.findById(id)
@@ -121,7 +117,6 @@ public class NovelController {
     }
 
     @DeleteMapping("/{id}")
-    @CacheEvict(value = "novels", key = "#id")
     public Mono<ResponseEntity<?>> delete(@PathVariable String id) {
         return Mono.fromCallable(() -> {
             boolean deleted = cascadeService.cascadeDelete(id);

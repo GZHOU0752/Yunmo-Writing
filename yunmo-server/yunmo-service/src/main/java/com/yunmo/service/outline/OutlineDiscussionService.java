@@ -34,7 +34,7 @@ public class OutlineDiscussionService {
                                      com.yunmo.domain.repository.ChapterRepository chapterRepo,
                                      com.yunmo.domain.repository.CharacterRepository characterRepo,
                                      com.yunmo.domain.repository.NovelRepository novelRepo) {
-        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-v4-pro");
+        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-chat");
         this.outlineNodeService = outlineNodeService;
         this.chapterRepo = chapterRepo;
         this.characterRepo = characterRepo;

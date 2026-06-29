@@ -31,7 +31,7 @@ async function handleLogin() {
 
 <template>
   <div class="min-h-[100dvh] flex items-center justify-center" style="background:linear-gradient(180deg, var(--yunmo-paper) 0%, var(--yunmo-paper-dark) 100%)">
-    <div class="yunmo-card-ghost p-10 w-full max-w-sm" style="box-shadow:0 8px 32px rgba(139,58,58,0.06),0 2px 8px rgba(0,0,0,0.04)">
+    <div class="yunmo-card p-10 w-full max-w-sm" style="box-shadow:0 8px 32px rgba(31,22,12,0.08),0 2px 8px rgba(0,0,0,0.03)">
       <div class="text-center mb-8">
         <div class="font-brush text-4xl tracking-widest mb-2" style="color:var(--yunmo-accent)">云墨</div>
         <p class="text-xs">古典美学 · AI 写作伴侣</p>

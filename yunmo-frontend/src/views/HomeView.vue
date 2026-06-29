@@ -116,11 +116,15 @@ const particles = Array.from({ length: 6 }, (_, i) => ({
             </button>
           </div>
         </div>
-        <!-- 右栏：留白 · 墨韵呼吸 -->
+        <!-- 右栏：纸稿叠影 -->
         <div class="md:col-span-2 hidden md:flex items-center justify-center">
-          <div class="w-48 h-48 rounded-full opacity-[0.03]"
-               style="background: radial-gradient(circle, var(--yunmo-accent), transparent 70%)"
-          />
+          <div class="relative w-44 h-56">
+            <div class="absolute inset-0 rounded-md opacity-20" style="background:var(--yunmo-paper-light);transform:rotate(-3deg);box-shadow:0 1px 3px rgba(31,22,12,0.06)"></div>
+            <div class="absolute inset-1 rounded-md opacity-30" style="background:var(--yunmo-paper-light);transform:rotate(1deg);box-shadow:0 1px 3px rgba(31,22,12,0.05)"></div>
+            <div class="absolute inset-2 rounded-md opacity-90 flex items-center justify-center" style="background:var(--yunmo-paper-light);box-shadow:0 2px 8px rgba(31,22,12,0.06)">
+              <span class="font-brush text-6xl" style="color:var(--yunmo-accent);opacity:0.25">墨</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -146,16 +150,16 @@ const particles = Array.from({ length: 6 }, (_, i) => ({
           </div>
           <!-- 亮点数字 -->
           <div class="hidden md:flex items-end gap-8 mt-6 md:mt-0">
-            <div>
-              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-accent)">6</div>
+            <div class="text-right">
+              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-ink)">6</div>
               <div class="text-xs mt-1">AI 智能体</div>
             </div>
-            <div>
-              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-accent)">33</div>
+            <div class="text-right">
+              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-ink)">33</div>
               <div class="text-xs mt-1">质量维度</div>
             </div>
-            <div>
-              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-accent)">8</div>
+            <div class="text-right">
+              <div class="text-2xl font-bold font-tabular" style="color:var(--yunmo-ink)">8</div>
               <div class="text-xs mt-1">类型模板</div>
             </div>
           </div>

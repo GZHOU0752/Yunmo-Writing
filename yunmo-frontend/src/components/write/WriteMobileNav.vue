@@ -7,8 +7,6 @@ import GeneratePanel from '@/components/GeneratePanel.vue'
 import AIChatPanel from '@/components/AIChatPanel.vue'
 import ReferenceMaterialList from '@/components/ReferenceMaterialList.vue'
 import OutlinePanel from '@/components/outline/OutlinePanel.vue'
-import CharacterProgressPanel from '@/components/CharacterProgressPanel.vue'
-import EventTimeline from '@/components/EventTimeline.vue'
 import WriteChapterList from './WriteChapterList.vue'
 import { message } from 'ant-design-vue'
 
@@ -98,7 +96,7 @@ async function handleSave() {
       </div>
       <!-- 移动端标签切换 -->
       <div class="flex border-b border-[var(--yunmo-border)] px-2">
-        <button v-for="tab in [{k:'chapters',l:'章 节'},{k:'outline',l:'大 纲'},{k:'relations',l:'关 系'}]" :key="tab.k"
+        <button v-for="tab in [{k:'chapters',l:'章 节'},{k:'outline',l:'大 纲'}]" :key="tab.k"
           class="flex-1 text-center py-2.5 text-xs transition-fast rounded-t"
           :class="mobileLeftTab === tab.k ? 'text-[var(--yunmo-accent)] font-semibold' : 'text-caption'"
           :style="mobileLeftTab === tab.k ? { borderBottom: '2px solid var(--yunmo-accent)', marginBottom: '-1px' } : {}"
@@ -119,12 +117,6 @@ async function handleSave() {
         </div>
         <div v-if="mobileLeftTab === 'outline'">
           <OutlinePanel :novel-id="novelId" :chapters="store.chapters" :active-chapter="selectedChapterNum"
-            @select-chapter="(cn) => selectChapter(cn)" />
-        </div>
-        <div v-if="mobileLeftTab === 'relations'">
-          <CharacterProgressPanel :novel-id="novelId" :chapters="store.chapters" :current-chapter="selectedChapterNum" />
-          <hr class="ink-divider my-3" />
-          <EventTimeline :chapters="store.chapters" :current-chapter="selectedChapterNum"
             @select-chapter="(cn) => selectChapter(cn)" />
         </div>
       </div>
