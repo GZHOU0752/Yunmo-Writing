@@ -20,15 +20,15 @@ public class ContextSnapshot extends BaseEntity {
     private String chapterId;
 
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(name = "layer1_bible", columnDefinition = "LONGTEXT")
     private String layer1Bible;
 
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(name = "layer2_active", columnDefinition = "LONGTEXT")
     private String layer2Active;
 
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(name = "layer3_history", columnDefinition = "LONGTEXT")
     private String layer3History;
 
     @Column(columnDefinition = "TEXT")
