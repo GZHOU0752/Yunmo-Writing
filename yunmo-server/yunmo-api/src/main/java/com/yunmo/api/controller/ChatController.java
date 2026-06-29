@@ -2,6 +2,8 @@ package com.yunmo.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.service.chat.ChatService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -17,6 +19,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/novels/{novelId}/chat")
 public class ChatController {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
     private final ChatService chatService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -34,10 +37,12 @@ public class ChatController {
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chat(@PathVariable String novelId,
                              @RequestBody Map<String, Object> body) {
+        log.info("[Chat] 收到聊天请求 — novel={}, body={}", novelId, body);
         // 安全提取 message（支持 String 和 Number 类型）
         Object msgObj = body.get("message");
         String message = msgObj != null ? String.valueOf(msgObj) : "";
         if (message.isBlank()) {
+            log.warn("[Chat] 消息为空");
             return Flux.just("data: {\"error\":\"消息不能为空\"}\n\n");
         }
 
@@ -57,19 +62,24 @@ public class ChatController {
         @SuppressWarnings("unchecked")
         List<Map<String, String>> history = (List<Map<String, String>>) body.get("history");
 
+        log.info("[Chat] 开始处理 — novelId={}, message={}, chapterNumber={}", novelId, message, chapterNumber);
+
         return Flux.concat(
             Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
             chatService.chat(novelId, message, chapterNumber, history)
+                .doOnNext(chunk -> log.debug("[Chat] 收到 chunk: {}", chunk))
+                .doOnError(e -> log.error("[Chat] 流式错误: {}", e.getMessage()))
                 .map(chunk -> {
                     try {
                         String escaped = objectMapper.writeValueAsString(
                             Map.of("token", chunk));
                         return "data: " + escaped + "\n\n";
                     } catch (Exception e) {
+                        log.error("[Chat] 序列化失败: {}", e.getMessage());
                         return "data: {\"token\":\"[序列化失败]\"}\n\n";
                     }
                 }),
             Flux.just("event: done\ndata: {}\n\n")
-        );
+        ).doOnComplete(() -> log.info("[Chat] 聊天完成 — novelId={}", novelId));
     }
 }
