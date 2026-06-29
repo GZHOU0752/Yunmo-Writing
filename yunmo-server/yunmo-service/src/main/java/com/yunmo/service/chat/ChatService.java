@@ -94,20 +94,16 @@ public class ChatService {
                     message);
 
                 return FluxStreamingAdapter.toFlux(streamingModel, List.of(UserMessage.from(prompt)))
-                .map(chunk -> {
-                    if (chunk != null && !chunk.isEmpty()) {
-                        return "{\"token\":\"" + escapeJson(chunk) + "\"}";
-                    }
-                    return "";
-                }).timeout(Duration.ofMinutes(3))
+                .filter(chunk -> chunk != null && !chunk.isEmpty())
+                .timeout(Duration.ofMinutes(3))
                   .onErrorResume(e -> {
                       log.warn("聊天流中断：{}", e.getMessage());
-                      return Mono.just("{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+                      return Mono.just("[错误] " + e.getMessage());
                   });
 
             } catch (Exception e) {
                 log.error("聊天失败：{}", e.getMessage());
-                return Flux.just("{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+                return Flux.just("[错误] " + e.getMessage());
             }
             }));
     }
