@@ -21,7 +21,7 @@ public class ChapterVersion extends BaseEntity {
     private Integer versionNumber;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "LONGTEXT")
     private String content;
 
     @Column(name = "change_summary", columnDefinition = "TEXT")

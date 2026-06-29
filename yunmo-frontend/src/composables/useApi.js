@@ -13,9 +13,10 @@ export function isLoggedIn() { return !!localStorage.getItem('yunmo_token') }
 async function request(url, options) {
   // 防御性处理：若 url 已经带了 /api/v1 前缀则不重复拼接
   const cleanUrl = url.startsWith(BASE) ? url.substring(BASE.length) || '/' : url
+  const { headers: optHeaders, ...restOptions } = options || {}
   const res = await fetch(`${BASE}${cleanUrl}`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...options?.headers },
-    ...options,
+    ...restOptions,
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...optHeaders },
   })
   if (!res.ok) {
     if (res.status === 401) {
@@ -37,7 +38,14 @@ async function downloadFile(url, filename) {
   const res = await fetch(`${BASE}${url}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
-  if (!res.ok) throw new Error('下载失败，请重试')
+  if (!res.ok) {
+    if (res.status === 401) {
+      clearToken()
+      window.location.hash = '#/login'
+      throw new Error('登录已过期，请重新登录')
+    }
+    throw new Error('下载失败，请重试')
+  }
   const blob = await res.blob()
   const a = document.createElement('a')
   const blobUrl = URL.createObjectURL(blob)
@@ -69,12 +77,13 @@ export function useApi() {
       generateOutline: (id) => request(`/novels/${id}/generate-outline`, { method: 'POST' }),
       search: (id, keyword) => request(`/novels/${id}/search`, { method: 'POST', body: JSON.stringify({ keyword }) }),
       replace: (id, find, replace, chapterNumbers) => request(`/novels/${id}/replace`, { method: 'POST', body: JSON.stringify({ find, replace, chapterNumbers }) }),
-      chat: (novelId, message, chapterNumber, history) => {
+      chat: (novelId, message, chapterNumber, history, signal) => {
         const token = localStorage.getItem('yunmo_token')
         return fetch(`${BASE}/novels/${novelId}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ message, chapterNumber, history }),
+          signal,
         })
       },
     },
@@ -124,20 +133,22 @@ export function useApi() {
       update: (novelId, id, data) => request(`/novels/${novelId}/outline/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       delete: (novelId, id) => request(`/novels/${novelId}/outline/${id}`, { method: 'DELETE' }),
       bindChapter: (novelId, id, chapterNumber) => request(`/novels/${novelId}/outline/${id}/bind-chapter`, { method: 'PUT', body: JSON.stringify({ chapterNumber }) }),
-      discuss: (novelId, message, nodeId) => {
+      discuss: (novelId, message, nodeId, signal) => {
         const token = localStorage.getItem('yunmo_token')
         return fetch(`${BASE}/novels/${novelId}/outline/discuss`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ message, nodeId }),
+          signal,
         })
       },
-      planChapter: (novelId, chapterNumber, answers) => {
+      planChapter: (novelId, chapterNumber, answers, signal) => {
         const token = localStorage.getItem('yunmo_token')
         return fetch(`${BASE}/novels/${novelId}/outline/plan-chapter/${chapterNumber}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ answers }),
+          signal,
         })
       },
     },

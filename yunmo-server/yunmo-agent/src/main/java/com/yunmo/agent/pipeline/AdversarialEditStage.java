@@ -53,13 +53,12 @@ public class AdversarialEditStage implements PipelinePlugin {
         AgentSpec editorSpec = specs.get(AgentType.EDITOR);
         AgentSpec rewriterSpec = specs.get(AgentType.WRITER);
         AgentSpec readerSpec = specs.get(AgentType.READER);
-        AgentSpec writerSpec = specs.get(AgentType.WRITER);
 
         ChatLanguageModel editor = agentFactory.createChatModel(editorSpec);
         ChatLanguageModel rewriter = agentFactory.createChatModel(rewriterSpec);
         ChatLanguageModel reader = agentFactory.createChatModel(readerSpec);
 
-        int chapterNumber = state.get("chapter_number", Integer.class);
+        int chapterNumber = state.getInt("chapter_number", 0);
         String content = state.get("chapter_content", String.class);
         if (content == null || content.isEmpty()) return StageOutput.empty();
 

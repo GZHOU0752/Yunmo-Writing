@@ -6,6 +6,7 @@ import com.yunmo.service.outline.OutlineCompletionService;
 import com.yunmo.service.outline.OutlineDiscussionService;
 import com.yunmo.service.outline.OutlineNodeService;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -115,47 +116,54 @@ public class OutlineController {
 
     /** AI 自动补全下级大纲（SSE 流式） */
     @PostMapping(value = "/{id}/complete", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> complete(@PathVariable String novelId,
+    public Flux<ServerSentEvent<String>> complete(@PathVariable String novelId,
                                   @PathVariable String id,
                                   @RequestBody Map<String, Object> body) {
         int childLevel = ((Number) body.getOrDefault("childLevel", 2)).intValue();
         int count = ((Number) body.getOrDefault("count", 3)).intValue();
         return Flux.concat(
-            Flux.just("event: start\ndata: {\"status\":\"generating\"}\n\n"),
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{\"status\":\"generating\"}").event("start").build()),
             completionService.completeStream(novelId, id, childLevel, count)
                 .map(chunk -> {
                     try {
-                        return "data: " + objectMapper.writeValueAsString(
-                            Map.of("token", chunk)) + "\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data(objectMapper.writeValueAsString(Map.of("token", chunk))).build();
                     } catch (Exception e) {
-                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data("{\"token\":\"[序列化失败]\"}").build();
                     }
                 }),
-            Flux.just("event: done\ndata: {}\n\n")
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{}").event("done").build())
         );
     }
 
     /** AI 对话式大纲讨论（SSE 流式） */
     @PostMapping(value = "/discuss", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> discuss(@PathVariable String novelId,
+    public Flux<ServerSentEvent<String>> discuss(@PathVariable String novelId,
                                  @RequestBody Map<String, Object> body) {
         String nodeId = (String) body.get("nodeId");
         String message = (String) body.get("message");
         if (message == null || message.isBlank()) {
-            return Flux.just("data: {\"error\":\"消息不能为空\"}\n\n");
+            return Flux.just(ServerSentEvent.<String>builder()
+                .data("{\"error\":\"消息不能为空\"}").event("error").build());
         }
         return Flux.concat(
-            Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{\"status\":\"thinking\"}").event("start").build()),
             discussionService.discuss(novelId, nodeId, message)
                 .map(chunk -> {
                     try {
-                        return "data: " + objectMapper.writeValueAsString(
-                            Map.of("token", chunk)) + "\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data(objectMapper.writeValueAsString(Map.of("token", chunk))).build();
                     } catch (Exception e) {
-                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data("{\"token\":\"[序列化失败]\"}").build();
                     }
                 }),
-            Flux.just("event: done\ndata: {}\n\n")
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{}").event("done").build())
         );
     }
 
@@ -163,22 +171,25 @@ public class OutlineController {
      * 引导式章节规划 — AI主动提问，用户回答后生成章节卡
      */
     @PostMapping(value = "/plan-chapter/{chapterNumber}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> planChapter(@PathVariable String novelId,
+    public Flux<ServerSentEvent<String>> planChapter(@PathVariable String novelId,
                                      @PathVariable int chapterNumber,
                                      @RequestBody Map<String, Object> body) {
         String answers = (String) body.getOrDefault("answers", "");
         return Flux.concat(
-            Flux.just("event: start\ndata: {\"status\":\"thinking\"}\n\n"),
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{\"status\":\"thinking\"}").event("start").build()),
             discussionService.planChapter(novelId, chapterNumber, answers.isEmpty() ? null : answers)
                 .map(chunk -> {
                     try {
-                        return "data: " + objectMapper.writeValueAsString(
-                            Map.of("token", chunk)) + "\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data(objectMapper.writeValueAsString(Map.of("token", chunk))).build();
                     } catch (Exception e) {
-                        return "data: {\"token\":\"[序列化失败]\"}\n\n";
+                        return ServerSentEvent.<String>builder()
+                            .data("{\"token\":\"[序列化失败]\"}").build();
                     }
                 }),
-            Flux.just("event: done\ndata: {}\n\n")
+            Flux.just(ServerSentEvent.<String>builder()
+                .data("{}").event("done").build())
         );
     }
 
@@ -187,7 +198,11 @@ public class OutlineController {
     public Mono<Void> bindChapter(@PathVariable String novelId,
                                    @PathVariable String id,
                                    @RequestBody Map<String, Object> body) {
-        int chapterNumber = ((Number) body.get("chapterNumber")).intValue();
+        Object raw = body.get("chapterNumber");
+        if (raw == null) {
+            return Mono.error(new IllegalArgumentException("chapterNumber 不能为空"));
+        }
+        int chapterNumber = ((Number) raw).intValue();
         return Mono.fromRunnable(() -> outlineNodeService.bindChapter(id, chapterNumber))
                 .subscribeOn(Schedulers.boundedElastic()).then();
     }

@@ -32,7 +32,7 @@ async function sendMessage() {
 
   abortController = new AbortController()
   try {
-    const res = await api.outline.discuss(props.novelId, text, props.nodeId)
+    const res = await api.outline.discuss(props.novelId, text, props.nodeId, abortController.signal)
     if (!res.ok || !res.body) throw new Error('SSE 连接失败')
 
     const reader = res.body.getReader()

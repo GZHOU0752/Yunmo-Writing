@@ -18,6 +18,15 @@ const statusLabels = {
   reviewing: { text: '审校中...', color: 'processing' },
   done: { text: '完成', color: 'success' },
 }
+
+/** 去除 HTML 标签后计算纯文本字数 */
+function countPreviewWords(text) {
+  if (!text) return 0
+  const plain = text.replace(/<[^>]+>/g, '').replace(/&#\d+;/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, '')
+  const cn = (plain.match(/[一-鿿]/g) || []).length
+  const en = (plain.match(/[a-zA-Z]+/g) || []).length
+  return cn + en
+}
 </script>
 
 <template>
@@ -91,7 +100,7 @@ const statusLabels = {
       <div class="flex items-center justify-between mb-1.5">
         <label class="text-xs font-semibold" style="color:var(--yunmo-accent)">生成预览</label>
         <span class="text-[11px] font-tabular">
-          {{ streamedText.length.toLocaleString() }} 字
+          {{ countPreviewWords(streamedText).toLocaleString() }} 字
         </span>
       </div>
       <div

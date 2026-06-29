@@ -22,7 +22,7 @@ async function handleLogin() {
     setToken(res.token)
     router.push('/dashboard')
   } catch (e) {
-    error.value = '邮箱或密码错误，请重试'
+    error.value = e.message || '邮箱或密码错误，请重试'
   } finally {
     loading.value = false
   }

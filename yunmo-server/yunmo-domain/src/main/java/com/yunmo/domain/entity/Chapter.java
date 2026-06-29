@@ -32,7 +32,7 @@ public class Chapter extends BaseEntity {
     private String title;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "LONGTEXT")
     private String content;
 
     @Column(columnDefinition = "TEXT")

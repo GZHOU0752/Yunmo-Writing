@@ -32,7 +32,11 @@ public class WritingStatsController {
 
     @PutMapping("/target")
     public Mono<Void> setTarget(@PathVariable String novelId, @RequestBody Map<String, Object> body) {
-        int target = ((Number) body.get("targetWordCount")).intValue();
+        Object raw = body.get("targetWordCount");
+        if (raw == null) {
+            return Mono.error(new IllegalArgumentException("targetWordCount 不能为空"));
+        }
+        int target = ((Number) raw).intValue();
         return Mono.fromRunnable(() -> statsService.setTarget(novelId, target))
                 .subscribeOn(Schedulers.boundedElastic()).then();
     }

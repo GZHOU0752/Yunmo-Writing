@@ -1,10 +1,14 @@
 package com.yunmo.agent.hook;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,14 +26,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HookSystem {
 
     private static final Logger log = LoggerFactory.getLogger(HookSystem.class);
+    private static final String REDIS_PREFIX = "yunmo:hook:";
+    private static final Duration REDIS_TTL = Duration.ofDays(30);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final SecureRandom random = new SecureRandom();
+    private final StringRedisTemplate redis;
 
     // 每部小说的钩子使用历史: novelId → [最近使用的钩子类型列表，按章节顺序]
     private final Map<String, List<HookType>> hookHistory = new ConcurrentHashMap<>();
 
     // 跨章悬念弧状态: novelId → ArcState
     private final Map<String, ArcState> arcStates = new ConcurrentHashMap<>();
+
+    public HookSystem(StringRedisTemplate redis) {
+        this.redis = redis;
+    }
 
     // ================================================================
     // 主入口：为章节选择合适的钩子组合
@@ -52,6 +64,9 @@ public class HookSystem {
             int totalChapters,
             String novelId
     ) {
+        // 0. 从 Redis 恢复状态（如果内存中没有）
+        loadHookHistory(novelId);
+
         // 1. 计算悬念强度
         int intensity = calculateIntensity(chapterNumber, totalChapters, chapterOutline);
 
@@ -83,6 +98,7 @@ public class HookSystem {
         // 8. 记录钩子使用
         recordHookUsage(novelId, opening);
         recordHookUsage(novelId, closing);
+        saveHookHistory(novelId);
 
         // 9. 前3章钩子（供选择逻辑参考）
         List<HookType> previousHooks = getRecentHooks(novelId, 3);
@@ -362,6 +378,37 @@ public class HookSystem {
             }
             return v;
         });
+    }
+
+    /** 从 Redis 加载钩子历史（如果内存中没有） */
+    private void loadHookHistory(String novelId) {
+        if (hookHistory.containsKey(novelId)) return;
+        try {
+            String json = redis.opsForValue().get(REDIS_PREFIX + novelId);
+            if (json != null && !json.isEmpty()) {
+                List<String> names = objectMapper.readValue(json, new TypeReference<>() {});
+                List<HookType> hooks = new ArrayList<>();
+                for (String name : names) {
+                    try { hooks.add(HookType.valueOf(name)); } catch (IllegalArgumentException ignored) {}
+                }
+                hookHistory.put(novelId, hooks);
+                log.debug("[HookSystem] 从 Redis 恢复钩子历史: novel={}, count={}", novelId, hooks.size());
+            }
+        } catch (Exception e) {
+            log.debug("[HookSystem] 加载钩子历史失败: {}", e.getMessage());
+        }
+    }
+
+    /** 保存钩子历史到 Redis */
+    private void saveHookHistory(String novelId) {
+        try {
+            List<HookType> hooks = hookHistory.getOrDefault(novelId, List.of());
+            List<String> names = hooks.stream().map(Enum::name).toList();
+            String json = objectMapper.writeValueAsString(names);
+            redis.opsForValue().set(REDIS_PREFIX + novelId, json, REDIS_TTL);
+        } catch (Exception e) {
+            log.debug("[HookSystem] 保存钩子历史失败: {}", e.getMessage());
+        }
     }
 
     private List<HookType> getRecentHooks(String novelId, int count) {

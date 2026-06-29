@@ -3,10 +3,13 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
-import { watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 
 const props = defineProps({ content: String })
 const emit = defineEmits(['update:content'])
+
+/** 防止 setContent 触发 onUpdate 后再次进入 watch 循环 */
+const isUpdatingFromProps = ref(false)
 
 const editor = useEditor({
   content: plainTextToHTML(props.content),
@@ -20,7 +23,9 @@ const editor = useEditor({
     Placeholder.configure({ placeholder: '在此书写正文，段间以空行分隔...' }),
   ],
   onUpdate: ({ editor }) => {
-    emit('update:content', editor.getHTML())
+    if (!isUpdatingFromProps.value) {
+      emit('update:content', editor.getHTML())
+    }
   },
   editorProps: {
     attributes: {
@@ -44,7 +49,10 @@ function plainTextToHTML(text) {
 
 watch(() => props.content, (newContent) => {
   if (editor.value && newContent !== editor.value.getHTML()) {
+    isUpdatingFromProps.value = true
     editor.value.commands.setContent(plainTextToHTML(newContent), false)
+    // 下一个微任务恢复标志位，确保 onUpdate 回调先执行完毕
+    Promise.resolve().then(() => { isUpdatingFromProps.value = false })
   }
 })
 

@@ -52,7 +52,7 @@ function buildHistory() {
     })
     .slice(-6)
     .map(m => ({
-      role: m.role === 'user' ? 'user' : 'ai',
+      role: m.role === 'user' ? 'user' : 'assistant',
       content: m.content.substring(0, 500),
     }))
 }
@@ -84,7 +84,7 @@ async function sendMessage(customPrompt) {
   abortController = new AbortController()
   try {
     const history = buildHistory()
-    const res = await api.novels.chat(props.novelId, fullMessage, props.chapterNumber, history)
+    const res = await api.novels.chat(props.novelId, fullMessage, props.chapterNumber, history, abortController.signal)
 
     if (!res.ok || !res.body) throw new Error('连接失败')
 

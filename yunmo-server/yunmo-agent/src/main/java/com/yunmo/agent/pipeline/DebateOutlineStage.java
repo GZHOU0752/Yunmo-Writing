@@ -47,7 +47,7 @@ public class DebateOutlineStage implements PipelinePlugin {
 
         String chapterPlan = state.get("chapter_plan", String.class);
         String contextText = state.get("context_text", String.class);
-        int chapterNumber = state.get("chapter_number", Integer.class);
+        int chapterNumber = state.getInt("chapter_number", 0);
 
         // 判断是否需要辩论：章纲为空或仅有基本信息
         if (chapterPlan != null && isDetailedOutline(chapterPlan)) {

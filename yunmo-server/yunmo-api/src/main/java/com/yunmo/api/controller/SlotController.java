@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 
@@ -29,93 +31,73 @@ public class SlotController {
 
     /** 列出所有槽位 */
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> listSlots() {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (SlotInfo s : slotManager.listSlots()) {
-            result.add(toSlotMap(s));
-        }
-        log.debug("[SlotAPI] 列出所有槽位 — count={}", result.size());
-        return ResponseEntity.ok(result);
+    public Mono<ResponseEntity<List<Map<String, Object>>>> listSlots() {
+        return Mono.fromCallable(() -> {
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (SlotInfo s : slotManager.listSlots()) {
+                result.add(toSlotMap(s));
+            }
+            return ResponseEntity.ok(result);
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 创建新槽位 */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createSlot(@RequestBody Map<String, Object> body) {
-        try {
+    public Mono<ResponseEntity<Map<String, Object>>> createSlot(@RequestBody Map<String, Object> body) {
+        return Mono.fromCallable(() -> {
             String title = (String) body.getOrDefault("title", "未命名作品");
-            log.info("[SlotAPI] 创建槽位请求 — title={}", title);
             SlotInfo slot = slotManager.createSlot(title);
-            log.info("[SlotAPI] 槽位已创建 — id={}, title={}", slot.getId(), slot.getTitle());
             return ResponseEntity.ok(toSlotMap(slot));
-        } catch (Exception e) {
-            log.error("[SlotAPI] 创建槽位失败 — title={}, error={}", body.getOrDefault("title", "未知"), e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 切换活跃槽位 */
     @PutMapping("/{slotId}/activate")
-    public ResponseEntity<Map<String, Object>> activateSlot(@PathVariable String slotId) {
-        try {
-            log.info("[SlotAPI] 切换活跃槽位请求 — slotId={}", slotId);
+    public Mono<ResponseEntity<Map<String, Object>>> activateSlot(@PathVariable String slotId) {
+        return Mono.fromCallable(() -> {
             slotManager.switchSlot(slotId);
             SlotInfo active = slotManager.getActiveSlot();
-            log.info("[SlotAPI] 槽位已切换 — activeSlot={}", active != null ? active.getId() : "null");
+            if (active == null) {
+                return ResponseEntity.badRequest().body(Map.<String, Object>of("error", "槽位切换失败"));
+            }
             return ResponseEntity.ok(toSlotMap(active));
-        } catch (Exception e) {
-            log.error("[SlotAPI] 切换槽位失败 — slotId={}, error={}", slotId, e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 安全删除（移到回收站） */
     @DeleteMapping("/{slotId}")
-    public ResponseEntity<Map<String, Object>> deleteSlot(@PathVariable String slotId) {
-        try {
-            log.info("[SlotAPI] 删除槽位请求 — slotId={}", slotId);
+    public Mono<ResponseEntity<Map<String, Object>>> deleteSlot(@PathVariable String slotId) {
+        return Mono.fromCallable(() -> {
             slotManager.deleteSlotSafe(slotId);
-            log.info("[SlotAPI] 槽位已移至回收站 — slotId={}", slotId);
-            return ResponseEntity.ok(Map.of("deleted", true, "message", "已移至回收站"));
-        } catch (Exception e) {
-            log.error("[SlotAPI] 删除槽位失败 — slotId={}, error={}", slotId, e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+            return ResponseEntity.ok(Map.<String, Object>of("deleted", true, "message", "已移至回收站"));
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 从回收站恢复 */
     @PostMapping("/trash/{trashDir}/restore")
-    public ResponseEntity<Map<String, Object>> restoreFromTrash(@PathVariable String trashDir) {
-        try {
-            log.info("[SlotAPI] 恢复槽位请求 — trashDir={}", trashDir);
+    public Mono<ResponseEntity<Map<String, Object>>> restoreFromTrash(@PathVariable String trashDir) {
+        return Mono.fromCallable(() -> {
             slotManager.restoreFromTrash(trashDir);
-            log.info("[SlotAPI] 槽位已恢复 — trashDir={}", trashDir);
-            return ResponseEntity.ok(Map.of("restored", true));
-        } catch (Exception e) {
-            log.error("[SlotAPI] 恢复槽位失败 — trashDir={}, error={}", trashDir, e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+            return ResponseEntity.ok(Map.<String, Object>of("restored", true));
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 清空回收站 */
     @DeleteMapping("/trash")
-    public ResponseEntity<Map<String, Object>> purgeTrash() {
-        try {
-            log.info("[SlotAPI] 清空回收站请求");
+    public Mono<ResponseEntity<Map<String, Object>>> purgeTrash() {
+        return Mono.fromCallable(() -> {
             slotManager.purgeTrash();
-            log.info("[SlotAPI] 回收站已清空");
-            return ResponseEntity.ok(Map.of("purged", true));
-        } catch (Exception e) {
-            log.error("[SlotAPI] 清空回收站失败 — error={}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+            return ResponseEntity.ok(Map.<String, Object>of("purged", true));
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     /** 查看回收站 */
     @GetMapping("/trash")
-    public ResponseEntity<List<Map<String, Object>>> listTrash() {
-        List<Map<String, Object>> trashList = slotManager.listTrash();
-        log.debug("[SlotAPI] 查看回收站 — count={}", trashList.size());
-        return ResponseEntity.ok(trashList);
+    public Mono<ResponseEntity<List<Map<String, Object>>>> listTrash() {
+        return Mono.fromCallable(() -> {
+            List<Map<String, Object>> trashList = slotManager.listTrash();
+            return ResponseEntity.ok(trashList);
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     private Map<String, Object> toSlotMap(SlotInfo slot) {

@@ -6,7 +6,10 @@
 import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWriteStore } from '@/composables/useWriteStore'
+import { useApi } from '@/composables/useApi'
 import { message } from 'ant-design-vue'
+
+const api = useApi()
 
 const props = defineProps({
   novelId: { type: String, required: true },
@@ -46,7 +49,6 @@ async function handleTitleSave() {
     return
   }
   try {
-    const api = (await import('@/composables/useApi')).useApi()
     await api.chapters.update(props.novelId, props.selectedChapterNum, { title: newTitle })
     if (store.currentChapter) store.currentChapter.title = newTitle
     await store.fetchChapters(props.novelId)
@@ -80,7 +82,6 @@ async function copyChapter() {
 /** 导出文件 */
 async function handleExport({ key }) {
   try {
-    const api = (await import('@/composables/useApi')).useApi()
     api.export[key](props.novelId)
   } catch {}
 }
@@ -142,12 +143,12 @@ defineExpose({ syncEditingTitle })
       <span v-if="lastAutoSaved" class="text-[10px] font-tabular text-caption mr-1">{{ lastAutoSaved }}</span>
 
       <!-- 撤销/重做 -->
-      <button class="toolbar-btn !p-2" title="撤销 (Ctrl+Z)" @click="$editor?.chain().focus().undo().run()">
+      <button class="toolbar-btn !p-2" title="撤销 (Ctrl+Z)" @click="document.execCommand('undo')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
         </svg>
       </button>
-      <button class="toolbar-btn !p-2" title="重做 (Ctrl+Shift+Z)">
+      <button class="toolbar-btn !p-2" title="重做 (Ctrl+Shift+Z)" @click="document.execCommand('redo')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
         </svg>

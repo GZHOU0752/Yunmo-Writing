@@ -59,9 +59,9 @@ public class ChatService {
                     for (Map<String, String> msg : history) {
                         String role = msg.getOrDefault("role", "user");
                         String content = msg.getOrDefault("content", "");
-                        if (role.equals("user")) {
+                        if ("user".equals(role)) {
                             historyText.append("用户：").append(content).append("\n\n");
-                        } else if (role.equals("ai")) {
+                        } else if ("ai".equals(role) || "assistant".equals(role)) {
                             historyText.append("助手：").append(content).append("\n\n");
                         }
                     }
@@ -162,14 +162,5 @@ public class ChatService {
         }
 
         return sb.toString();
-    }
-
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
     }
 }

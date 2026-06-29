@@ -166,8 +166,8 @@ public class WriteChapterStage implements PipelinePlugin {
                     return new StageEvent("write_chapter", "writing",
                             StageOutput.of("token", token));
                 })
-                .concatWith(Flux.defer(() -> {
-                    // 流式结束后，将完整内容写入 PipelineState 供后续 Review 阶段使用
+                // 在 onComplete 中同步写入状态，确保下游阶段读取时状态已就绪
+                .doOnComplete(() -> {
                     String content = fullContent.toString();
                     int wordCount = estimateWordCount(content);
                     int targetWordMin = state.getOrDefault("target_word_min", Integer.class, 2300);
@@ -185,9 +185,11 @@ public class WriteChapterStage implements PipelinePlugin {
                     state.put("chapter_content", content);
                     state.put("chapter_word_count", wordCount);
                     state.putFile("chapter_content.md", content);
-                    return Flux.just(new StageEvent("write_chapter", "writing_done",
-                            StageOutput.of("chapter_word_count", wordCount)));
-                }));
+                })
+                .concatWith(Flux.defer(() -> Flux.just(
+                    new StageEvent("write_chapter", "writing_done",
+                            StageOutput.of("chapter_word_count",
+                                    state.getOrDefault("chapter_word_count", Integer.class, 0))))));
     }
 
     @Override

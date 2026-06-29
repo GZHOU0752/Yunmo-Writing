@@ -1,7 +1,5 @@
 package com.yunmo.api.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.yunmo.domain.entity.Chapter;
 import com.yunmo.domain.entity.ChapterVersion;
 import com.yunmo.domain.repository.ChapterRepository;
@@ -14,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.time.Duration;
 import java.util.*;
 
 @RestController
@@ -22,14 +19,10 @@ import java.util.*;
 public class ChapterController {
 
     private static final Logger log = LoggerFactory.getLogger(ChapterController.class);
-    private static final String CACHE_PREFIX = "chapter:";
-    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
 
     private final ChapterRepository chapterRepo;
     private final ChapterVersionRepository versionRepo;
     private final StringRedisTemplate redis;
-    private final ObjectMapper mapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
 
     public ChapterController(ChapterRepository chapterRepo,
                               ChapterVersionRepository versionRepo,
@@ -107,14 +100,18 @@ public class ChapterController {
                                 versionRepo.save(ver);
 
                                 ch.setContent(newContent);
-                                // 中文字数估算（以 CJK 字符数为主）
+                                // 去除 HTML 标签后计算纯文本字数
+                                String plainText = newContent.replaceAll("<[^>]+>", "")
+                                        .replaceAll("&#\\d+;", "").replaceAll("&nbsp;", " ")
+                                        .replaceAll("\\s+", "");
                                 int cjkCount = 0;
-                                for (char c : newContent.toCharArray()) {
+                                for (int i = 0; i < plainText.length(); i++) {
+                                    char c = plainText.charAt(i);
                                     if (Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS) {
                                         cjkCount++;
                                     }
                                 }
-                                ch.setWordCount(Math.max(cjkCount, newContent.replaceAll("\\s+", "").length() / 2));
+                                ch.setWordCount(Math.max(cjkCount, plainText.length() / 2));
                             }
                             if (body.containsKey("writing_plan")) {
                                 ch.setWritingPlan((String) body.get("writing_plan"));
@@ -288,36 +285,11 @@ public class ChapterController {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
-    // ===== Redis 缓存辅助 =====
-
-    private String cacheKey(String novelId, int chapterNumber) {
-        return CACHE_PREFIX + novelId + ":" + chapterNumber;
-    }
-
-    private Chapter getCachedChapter(String novelId, int chapterNumber) {
-        try {
-            String json = redis.opsForValue().get(cacheKey(novelId, chapterNumber));
-            if (json != null && !json.isEmpty()) {
-                return mapper.readValue(json, Chapter.class);
-            }
-        } catch (Exception e) {
-            log.debug("Redis 读取缓存失败: {}", e.getMessage());
-        }
-        return null;
-    }
-
-    private void cacheChapter(Chapter ch) {
-        try {
-            String json = mapper.writeValueAsString(ch);
-            redis.opsForValue().set(cacheKey(ch.getNovelId(), ch.getChapterNumber()), json, CACHE_TTL);
-        } catch (Exception e) {
-            log.debug("Redis 写入缓存失败: {}", e.getMessage());
-        }
-    }
+    // ===== Redis 缓存失效 =====
 
     private void invalidateCache(String novelId, int chapterNumber) {
         try {
-            redis.delete(cacheKey(novelId, chapterNumber));
+            redis.delete("chapter:" + novelId + ":" + chapterNumber);
         } catch (Exception e) {
             log.debug("Redis 删除缓存失败: {}", e.getMessage());
         }

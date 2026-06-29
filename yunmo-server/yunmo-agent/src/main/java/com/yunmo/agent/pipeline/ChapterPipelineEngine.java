@@ -10,8 +10,6 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * 章节生成流水线引擎 — 替代 Python build_chapter_graph().compile()
@@ -28,11 +26,14 @@ public class ChapterPipelineEngine {
 
     /** 专用线程池 — 不被 Reactor 管理，避免 LLM 调用被打断 */
     private final Scheduler blockingScheduler;
+    /** 并行阶段执行器 — 复用注入的线程池，避免每次创建新线程池 */
+    private final java.util.concurrent.Executor pipelineParallelExecutor;
 
     public ChapterPipelineEngine(
             @org.springframework.beans.factory.annotation.Qualifier("pipelineParallelExecutor")
             java.util.concurrent.Executor pipelineParallelExecutor
     ) {
+        this.pipelineParallelExecutor = pipelineParallelExecutor;
         this.blockingScheduler = Schedulers.fromExecutor(pipelineParallelExecutor);
     }
 
@@ -188,46 +189,33 @@ public class ChapterPipelineEngine {
     /** 并行执行多个阶段，合并所有输出到 state */
     private void executeParallel(ChapterPipelineDefinition definition, PipelineState state,
                                   List<String> stageNames) {
-        // 使用虚拟线程或固定线程池（几个并行阶段不需要太多线程）
-        ExecutorService executor = Executors.newFixedThreadPool(
-            Math.min(stageNames.size(), 4),
-            r -> {
-                Thread t = new Thread(r, "pipeline-parallel-" + r.hashCode());
-                t.setDaemon(true);
-                return t;
-            }
-        );
-
-        try {
-            List<CompletableFuture<StageOutput>> futures = stageNames.stream()
-                .map(name -> CompletableFuture.supplyAsync(() -> {
-                    PipelineStage s = definition.stages().get(name);
-                    if (s == null) {
-                        log.warn("[Pipeline-Parallel] 未找到阶段: {}", name);
-                        return StageOutput.empty();
-                    }
-                    log.info("[Pipeline-Parallel] 执行: {}", name);
-                    try {
-                        return s.execute(state);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }, executor))
-                .toList();
-
-            // 等待全部完成
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-            for (CompletableFuture<StageOutput> f : futures) {
-                try {
-                    mergeOutput(state, f.get());
-                } catch (Exception e) {
-                    log.error("[Pipeline-Parallel] 阶段执行失败", e);
-                    throw new RuntimeException("并行阶段执行失败", e);
+        // 复用注入的线程池，避免每次创建新线程池导致线程泄露
+        List<CompletableFuture<StageOutput>> futures = stageNames.stream()
+            .map(name -> CompletableFuture.supplyAsync(() -> {
+                PipelineStage s = definition.stages().get(name);
+                if (s == null) {
+                    log.warn("[Pipeline-Parallel] 未找到阶段: {}", name);
+                    return StageOutput.empty();
                 }
+                log.info("[Pipeline-Parallel] 执行: {}", name);
+                try {
+                    return s.execute(state);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }, pipelineParallelExecutor))
+            .toList();
+
+        // 等待全部完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        for (CompletableFuture<StageOutput> f : futures) {
+            try {
+                mergeOutput(state, f.get());
+            } catch (Exception e) {
+                log.error("[Pipeline-Parallel] 阶段执行失败", e);
+                throw new RuntimeException("并行阶段执行失败", e);
             }
-        } finally {
-            executor.shutdown();
         }
     }
 

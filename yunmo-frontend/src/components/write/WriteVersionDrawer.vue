@@ -6,7 +6,6 @@
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useWriteStore } from '@/composables/useWriteStore'
-import BranchSwitcher from '@/components/BranchSwitcher.vue'
 
 const props = defineProps({
   novelId: { type: String, required: true },
@@ -21,7 +20,6 @@ const store = useWriteStore()
 const showVersions = ref(false)
 const versions = ref([])
 const versionsLoading = ref(false)
-const activeBranch = ref('main')
 const selectedVersionId = ref(null)
 const selectedVersionContent = ref('')
 const selectedVersionLoading = ref(false)
@@ -31,11 +29,32 @@ const selectedVersion = computed(() => {
   return versions.value.find(v => v.id === selectedVersionId.value) || null
 })
 
+/** 格式化时间：将 ISO 时间戳转为 "MM-DD HH:mm" 格式 */
+function formatTime(ts) {
+  if (!ts) return '未知时间'
+  try {
+    const d = new Date(ts)
+    if (isNaN(d.getTime())) {
+      // 兜底：如果是字符串，尝试截取
+      return typeof ts === 'string' ? ts.substring(5, 16).replace('T', ' ') : '未知时间'
+    }
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${mm}-${dd} ${hh}:${mi}`
+  } catch {
+    return '未知时间'
+  }
+}
+
 /** 加载版本历史 */
 async function loadVersions() {
   versionsLoading.value = true
   try {
     versions.value = await api.chapters.versions(props.novelId, props.selectedChapterNum)
+    // 按版本号倒序排列
+    versions.value.sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0))
     // 自动选中第一个版本
     if (versions.value.length > 0 && !selectedVersionId.value) {
       selectVersion(versions.value[0])
@@ -52,9 +71,8 @@ async function selectVersion(version) {
   selectedVersionId.value = version.id
   selectedVersionLoading.value = true
   try {
-    // 尝试加载完整内容用于 diff 对比
-    const detail = await api.chapters.getVersion?.(props.novelId, props.selectedChapterNum, version.id)
-    selectedVersionContent.value = detail?.content || version.preview || ''
+    // 后端 listVersions 已返回 preview（前200字），直接使用
+    selectedVersionContent.value = version.preview || ''
   } catch {
     selectedVersionContent.value = version.preview || ''
   } finally {
@@ -73,6 +91,7 @@ async function open() {
 async function restoreVersion(version) {
   try {
     const ch = await api.chapters.restore(props.novelId, props.selectedChapterNum, version.id)
+    if (!store.currentChapter) return
     store.currentChapter.content = ch.content
     store.currentChapter.wordCount = ch.wordCount
     showVersions.value = false
@@ -81,17 +100,6 @@ async function restoreVersion(version) {
   } catch (e) {
     console.error('恢复版本失败:', e)
   }
-}
-
-/** 创建分支 */
-async function createBranch() {
-  try {
-    const name = prompt('分支名称')
-    if (name) {
-      await api.chapters.fork(props.novelId, props.selectedChapterNum, name)
-      loadVersions()
-    }
-  } catch {}
 }
 
 /** 简单的文本 diff：标记新增/删除 */
@@ -138,15 +146,8 @@ defineExpose({ open })
     <template #title>
       <div class="flex items-center gap-2">
         <span class="font-medium">历史版本</span>
-        <BranchSwitcher
-          :novel-id="novelId"
-          :chapter-number="selectedChapterNum"
-          :active-branch="activeBranch"
-          @update:active-branch="activeBranch = $event"
-          @refresh="loadVersions"
-        />
         <span class="text-xs text-caption ml-auto">
-          {{ versions.length > 0 ? `对比当前版本与版本${versions.length}/共${versions.length}个` : '暂无版本' }}
+          {{ versions.length > 0 ? `共 ${versions.length} 个版本` : '暂无版本' }}
         </span>
       </div>
     </template>
@@ -168,11 +169,8 @@ defineExpose({ open })
             @click="selectVersion(v)"
           >
             <div class="flex items-center justify-between mb-0.5">
-              <span class="text-xs font-medium">{{ v.createdAt?.substring(5, 16) || '未知时间' }}</span>
-              <span class="text-[10px] font-tabular">{{ v.wordCount || 0 }}字</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="text-[10px] opacity-60">桌面端</span>
+              <span class="text-xs font-medium">v{{ v.versionNumber }} · {{ formatTime(v.createdAt) }}</span>
+              <span class="text-[10px] font-tabular">{{ (v.wordCount || 0).toLocaleString() }}字</span>
             </div>
           </div>
         </div>
@@ -223,8 +221,7 @@ defineExpose({ open })
       </div>
 
       <!-- 底部操作栏 -->
-      <div v-if="selectedVersion" class="absolute bottom-0 left-0 right-0 px-4 py-3 border-t border-[var(--yunmo-border)] bg-[var(--yunmo-paper-light)] flex items-center justify-between">
-        <button class="toolbar-btn text-xs" @click="createBranch">另存为分支</button>
+      <div v-if="selectedVersion" class="absolute bottom-0 left-0 right-0 px-4 py-3 border-t border-[var(--yunmo-border)] bg-[var(--yunmo-paper-light)] flex items-center justify-end">
         <button class="yunmo-btn !text-xs" @click="restoreVersion(selectedVersion)">恢复此版本</button>
       </div>
     </a-spin>

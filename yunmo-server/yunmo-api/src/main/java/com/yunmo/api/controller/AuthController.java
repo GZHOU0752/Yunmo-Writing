@@ -6,12 +6,11 @@ import com.yunmo.domain.entity.User;
 import com.yunmo.domain.repository.UserRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.security.MessageDigest;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
@@ -25,6 +24,7 @@ public class AuthController {
 
     private static final Duration TOKEN_TTL = Duration.ofDays(7);
     private static final String REDIS_KEY_PREFIX = "yunmo:token:";
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public AuthController(UserRepository userRepo, AppProperties appProperties,
                           StringRedisTemplate redis) {
@@ -52,7 +52,7 @@ public class AuthController {
             User user = new User();
             user.setEmail(email);
             user.setDisplayName(displayName);
-            user.setPasswordHash(hashPassword(password));
+            user.setPasswordHash(passwordEncoder.encode(password));
             user = userRepo.save(user);
 
             String token = JwtUtil.create(getSecret(), user.getId(), TOKEN_TTL.toMillis());
@@ -85,7 +85,7 @@ public class AuthController {
             }
 
             User user = userOpt.get();
-            if (!user.getPasswordHash().equals(hashPassword(password))) {
+            if (!verifyPassword(password, user.getPasswordHash())) {
                 return ResponseEntity.status(401)
                         .body(Map.<String, Object>of("error", "邮箱或密码错误"));
             }
@@ -159,13 +159,24 @@ public class AuthController {
         return appProperties.getSecretKey();
     }
 
-    private String hashPassword(String password) {
+    /**
+     * 验证密码 — 兼容 BCrypt 新格式和 SHA-256 旧格式
+     * 旧用户登录成功后自动迁移到 BCrypt 格式
+     */
+    private boolean verifyPassword(String rawPassword, String storedHash) {
+        if (storedHash == null) return false;
+        // BCrypt 哈希以 "$2a$" / "$2b$" 开头
+        if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$")) {
+            return passwordEncoder.matches(rawPassword, storedHash);
+        }
+        // 兼容旧的 SHA-256 哈希
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(rawPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String legacyHash = Base64.getEncoder().encodeToString(hash);
+            return legacyHash.equals(storedHash);
         } catch (Exception e) {
-            throw new RuntimeException("密码哈希失败", e);
+            return false;
         }
     }
 

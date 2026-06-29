@@ -11,6 +11,7 @@ const props = defineProps({
   selectedChapterNum: { type: Number, required: true },
   chapterSearchQuery: { type: String, default: '' },
   outlineExpanded: { type: Boolean, default: false },
+  chapters: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits([
@@ -88,7 +89,7 @@ defineExpose({ leftTab })
       </div>
       <OutlinePanel
         :novel-id="novelId"
-        :chapters="$attrs.chapters || []"
+        :chapters="props.chapters"
         :active-chapter="selectedChapterNum"
         @select-chapter="(cn) => { emit('update:selectedChapterNum', cn); leftTab = 'chapters' }"
       />

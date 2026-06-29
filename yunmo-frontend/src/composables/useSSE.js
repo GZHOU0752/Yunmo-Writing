@@ -53,11 +53,21 @@ export function useSSE() {
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
+        let currentEventType = ''
         for (const line of lines) {
-          if (line.startsWith('data:')) {
+          if (line.startsWith('event:')) {
+            currentEventType = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
             try {
               // Spring WebFlux 输出 'data:' 不带空格，trim() 兼容两种格式
               const event = JSON.parse(line.slice(5).trim())
+              // 将 event: 行的类型注入到事件对象中
+              if (currentEventType) {
+                event._eventType = currentEventType
+                // done 事件直接标记 phase
+                if (currentEventType === 'done') event.phase = event.phase || 'done'
+                currentEventType = ''
+              }
               phase.value = event.phase
               if (event.data?.content) streamedText.value += event.data.content
               if (event.data?.token) streamedText.value += event.data.token

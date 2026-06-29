@@ -33,6 +33,23 @@ public class PipelineState {
     }
 
     /**
+     * 安全获取 Integer 字段（避免 NPE 拆箱）
+     */
+    public int getInt(String key, int defaultValue) {
+        Object value = data.get(key);
+        if (value instanceof Number n) return n.intValue();
+        return defaultValue;
+    }
+
+    /**
+     * 安全获取 String 字段（避免 NPE）
+     */
+    public String getString(String key, String defaultValue) {
+        Object value = data.get(key);
+        return value instanceof String s ? s : defaultValue;
+    }
+
+    /**
      * 设置状态字段
      */
     public void put(String key, Object value) {

@@ -42,8 +42,8 @@ public class PleasureBeatStage implements PipelinePlugin {
         String chapterPlan = state.get("chapter_plan", String.class);
         String contextText = state.get("context_text", String.class);
         String userFocus = state.get("user_focus", String.class);
-        int chapterNumber = state.get("chapter_number", Integer.class);
-        int targetWordCount = state.get("target_word_count", Integer.class);
+        int chapterNumber = state.getInt("chapter_number", 0);
+        int targetWordCount = state.getInt("target_word_count", 2500);
 
         String prompt = buildPrompt(chapterNumber, chapterPlan, contextText, userFocus, targetWordCount);
         log.info("[PleasureBeat] 开始设计爽点结构 — chapter={}", chapterNumber);

@@ -10,7 +10,11 @@
       "WebFetch(domain:novelcrafter.com)",
       "Bash(npx vite *)",
       "Bash(mvn compile *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(./mvnw compile *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }

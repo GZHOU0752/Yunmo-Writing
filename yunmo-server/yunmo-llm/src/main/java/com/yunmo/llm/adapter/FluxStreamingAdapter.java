@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -33,7 +34,8 @@ public class FluxStreamingAdapter {
      * @return Flux<String> token 流
      */
     public static Flux<String> toFlux(StreamingChatLanguageModel model, List<ChatMessage> messages) {
-        return Flux.create(sink -> {
+        return Flux.<String>create(sink -> {
+            sink.onDispose(() -> log.debug("FluxStreamingAdapter: sink disposed"));
             model.generate(messages, new StreamingResponseHandler<AiMessage>() {
 
                 @Override
@@ -52,6 +54,15 @@ public class FluxStreamingAdapter {
                     sink.error(error);
                 }
             });
-        }, FluxSink.OverflowStrategy.BUFFER);
+        }, FluxSink.OverflowStrategy.BUFFER)
+        // 防止 HTTP 连接断开时 Flux 永久挂起：30 秒无 token 则超时
+        .timeout(Duration.ofSeconds(30))
+        .onErrorResume((Throwable e) -> {
+            if (e instanceof java.util.concurrent.TimeoutException) {
+                log.warn("流式生成超时（30秒无响应）");
+                return Flux.just("[错误] 生成超时，请重试");
+            }
+            return Flux.<String>error(e);
+        });
     }
 }

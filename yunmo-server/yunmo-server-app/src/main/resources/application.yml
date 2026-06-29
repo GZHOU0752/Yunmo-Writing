@@ -45,7 +45,7 @@ management:
 
 yunmo:
   app:
-    secret-key: ${MOLU_SECRET_KEY}
+    secret-key: ${YUNMO_SECRET_KEY:yunmo-default-secret-key-change-in-production}
     chroma-url: ${CHROMA_URL:http://localhost:8000}
     redis-url: ${REDIS_URL:redis://localhost:6379/0}
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}

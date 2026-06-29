@@ -742,28 +742,6 @@ public class ChapterGenerationService {
         }
     }
 
-    /** 每章生成后自动生成章纲摘要，写入 Chapter.writingPlan */
-    private void autoGenerateChapterPlan(String novelId, int chapterNumber,
-                                          String title, String content) {
-        try {
-            var ch = chapterRepo.findFirstByNovelIdAndChapterNumber(novelId, chapterNumber).orElse(null);
-            if (ch == null) return;
-            // 如果作者已经手动写了章纲，不覆盖
-            if (ch.getWritingPlan() != null && !ch.getWritingPlan().isBlank()) return;
-
-            // 从正文提取摘要作为章纲
-            String clean = content.replaceAll("<[^>]+>", "")
-                .replaceAll("&#\\d+;", "").replaceAll("\\s+", "").trim();
-            String plan = clean.length() > 150
-                ? clean.substring(0, 150) + "…" : clean;
-            ch.setWritingPlan(plan);
-            chapterRepo.save(ch);
-            log.info("[Auto] 章纲已自动生成: chapter={}", chapterNumber);
-        } catch (Exception e) {
-            log.warn("[Auto] 章纲生成失败: {}", e.getMessage());
-        }
-    }
-
     /**
      * 从新生成的章节中提取新角色并自动创建角色卡。
      * 同时更新已有角色的 lastAppearanceChapter（基于章节内容中的人名匹配）。

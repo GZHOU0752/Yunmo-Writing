@@ -149,6 +149,15 @@ export const useWriteStore = defineStore('write', () => {
     return { abort: wrappedAbort }
   }
 
+  /** 去除 HTML 标签，计算纯文本字数 */
+  function countWords(text) {
+    if (!text) return 0
+    const plain = text.replace(/<[^>]+>/g, '').replace(/&#\d+;/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, '')
+    const chineseChars = (plain.match(/[一-鿿]/g) || []).length
+    const englishWords = (plain.match(/[a-zA-Z]+/g) || []).length
+    return chineseChars + englishWords
+  }
+
   /** 将流式文本注入 currentChapter，中断/超时/手动停止时调用 */
   function injectStreamedContent(novelId, chapterNumber) {
     if (!streamedText.value) return
@@ -158,26 +167,22 @@ export const useWriteStore = defineStore('write', () => {
     }
     if (currentChapter.value) {
       currentChapter.value.content = streamedText.value
-      const chineseChars = (streamedText.value.match(/[一-鿿]/g) || []).length
-      const englishWords = (streamedText.value.match(/[a-zA-Z]+/g) || []).length
-      currentChapter.value.wordCount = chineseChars + englishWords
+      currentChapter.value.wordCount = countWords(streamedText.value)
       // 同步更新章节列表
       const idx = chapters.value.findIndex(c => c.chapterNumber === chapterNumber)
       if (idx >= 0) {
-        chapters.value[idx] = { ...chapters.value[idx], content: streamedText.value, wordCount: chineseChars + englishWords }
+        chapters.value[idx] = { ...chapters.value[idx], content: streamedText.value, wordCount: currentChapter.value.wordCount }
       }
     }
   }
 
   async function saveChapter(novelId, chapterNumber, content) {
     try {
-      await api.chapters.update(novelId, chapterNumber, { content })
+      const saved = await api.chapters.update(novelId, chapterNumber, { content })
       if (currentChapter.value) {
         currentChapter.value.content = content
-        // 同步更新本地字数（中文字符 + 英文单词）
-        const chineseChars = (content.match(/[一-鿿]/g) || []).length
-        const englishWords = (content.match(/[a-zA-Z]+/g) || []).length
-        currentChapter.value.wordCount = chineseChars + englishWords
+        // 优先使用后端返回的字数，否则本地计算
+        currentChapter.value.wordCount = saved?.wordCount ?? countWords(content)
         // 同步更新章节列表中的字数
         const idx = chapters.value.findIndex(c => c.chapterNumber === chapterNumber)
         if (idx >= 0) chapters.value[idx].wordCount = currentChapter.value.wordCount

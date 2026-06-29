@@ -92,7 +92,7 @@ const particles = Array.from({ length: 6 }, (_, i) => ({
 
       <div class="relative z-10 max-w-6xl mx-auto w-full grid md:grid-cols-5 gap-8 items-center px-6">
         <!-- 左栏：对联 + 文案 + CTA -->
-        <div class="md:col-span-3 flex flex-col">
+        <div class="md:col-span-5 flex flex-col">
           <div class="font-brush text-5xl md:text-7xl tracking-[0.08em] hero-title"
                style="color:var(--yunmo-couplet); line-height:1.15">
             <span class="block md:-ml-4">云起笔落处</span>
@@ -114,16 +114,6 @@ const particles = Array.from({ length: 6 }, (_, i) => ({
             <button class="cta-secondary" @click="scrollToFeatures">
               了解更多
             </button>
-          </div>
-        </div>
-        <!-- 右栏：纸稿叠影 -->
-        <div class="md:col-span-2 hidden md:flex items-center justify-center">
-          <div class="relative w-44 h-56">
-            <div class="absolute inset-0 rounded-md opacity-20" style="background:var(--yunmo-paper-light);transform:rotate(-3deg);box-shadow:0 1px 3px rgba(31,22,12,0.06)"></div>
-            <div class="absolute inset-1 rounded-md opacity-30" style="background:var(--yunmo-paper-light);transform:rotate(1deg);box-shadow:0 1px 3px rgba(31,22,12,0.05)"></div>
-            <div class="absolute inset-2 rounded-md opacity-90 flex items-center justify-center" style="background:var(--yunmo-paper-light);box-shadow:0 2px 8px rgba(31,22,12,0.06)">
-              <span class="font-brush text-6xl" style="color:var(--yunmo-accent);opacity:0.25">墨</span>
-            </div>
           </div>
         </div>
       </div>

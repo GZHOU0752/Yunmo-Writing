@@ -17,6 +17,10 @@ async function handleRegister() {
     error.value = '邮箱和密码不能为空'
     return
   }
+  if (password.value.length < 6) {
+    error.value = '密码至少需要6位'
+    return
+  }
   if (password.value !== password2.value) {
     error.value = '两次密码不一致'
     return
