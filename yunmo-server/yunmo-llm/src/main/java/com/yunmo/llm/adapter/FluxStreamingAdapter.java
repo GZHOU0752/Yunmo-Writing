@@ -1,9 +1,10 @@
 package com.yunmo.llm.adapter;
 
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.output.Response;
-import dev.langchain4j.service.TokenStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -33,15 +34,15 @@ public class FluxStreamingAdapter {
      */
     public static Flux<String> toFlux(StreamingChatLanguageModel model, List<ChatMessage> messages) {
         return Flux.create(sink -> {
-            model.generate(messages, new dev.langchain4j.model.chat.response.StreamingResponseHandler<>() {
+            model.generate(messages, new StreamingResponseHandler<AiMessage>() {
 
                 @Override
-                public void onPartialResponse(String token) {
+                public void onNext(String token) {
                     sink.next(token);
                 }
 
                 @Override
-                public void onCompleteResponse(Response response) {
+                public void onComplete(Response<AiMessage> response) {
                     sink.complete();
                 }
 
