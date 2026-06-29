@@ -99,8 +99,7 @@ services:
     networks:
       - yunmo-net
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
 volumes:
   mysql-data:
