@@ -2,8 +2,6 @@ package com.yunmo.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.dto.ChapterCommit;
 import com.yunmo.domain.entity.Character;
 import com.yunmo.domain.entity.CharacterState;
@@ -15,7 +13,11 @@ import com.yunmo.domain.repository.CharacterStateRepository;
 import com.yunmo.domain.repository.EmotionalDebtRepository;
 import com.yunmo.domain.repository.ForeshadowTrackingRepository;
 import com.yunmo.domain.repository.WorldRuleRepository;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,7 @@ public class ChapterCommitService {
     private final WorldRuleRepository worldRuleRepo;
     private final EmotionalDebtRepository emotionalDebtRepo;
     private final CharacterRepository characterRepo;
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ChapterCommitService(CharacterStateRepository characterStateRepo,
@@ -50,13 +52,13 @@ public class ChapterCommitService {
                                  WorldRuleRepository worldRuleRepo,
                                  EmotionalDebtRepository emotionalDebtRepo,
                                  CharacterRepository characterRepo,
-                                 ProviderRegistry providerRegistry) {
+                                 ChatModelFactory modelFactory) {
         this.characterStateRepo = characterStateRepo;
         this.foreshadowTrackingRepo = foreshadowTrackingRepo;
         this.worldRuleRepo = worldRuleRepo;
         this.emotionalDebtRepo = emotionalDebtRepo;
         this.characterRepo = characterRepo;
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
     }
 
     /**
@@ -251,18 +253,11 @@ public class ChapterCommitService {
             """, characterNames.isEmpty() ? "暂无已知角色" : characterNames, snippet);
 
         try {
-            var provider = providerRegistry.get("deepseek");
-            if (provider == null) {
-                log.warn("[闭环回写] LLM Provider不可用，跳过事实提取");
-                return Collections.emptyMap();
-            }
+            ChatLanguageModel model = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
 
-            var response = provider.generate(
-                List.of(LLMMessage.user(prompt)),
-                LLMConfig.precise("deepseek-v4-pro")
-            );
+            Response<AiMessage> response = model.generate(UserMessage.from(prompt));
 
-            String json = response.content();
+            String json = response.content().text();
             // 清理markdown代码块标记
             json = json.replaceAll("```json|```", "").trim();
             if (!json.startsWith("{")) {

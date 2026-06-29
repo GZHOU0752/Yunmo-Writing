@@ -6,7 +6,7 @@ import com.yunmo.common.enums.AgentType;
 import com.yunmo.common.util.AntiAIPatterns;
 import com.yunmo.common.util.AntiAIPatterns.DiagnosisResult;
 import com.yunmo.common.util.AntiAIPatterns.Severity;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ public class PolishChapterStage implements PipelinePlugin {
     public StageOutput execute(PipelineState state) {
         Map<AgentType, AgentSpec> specs = agentFactory.createAllSpecs(Map.of());
         AgentSpec spec = specs.get(AgentType.POLISHER);
-        MultiProviderChatModel model = agentFactory.createChatModel(spec);
+        ChatLanguageModel model = agentFactory.createChatModel(spec);
 
         String content = state.get("chapter_content", String.class);
         if (content == null || content.isEmpty()) {

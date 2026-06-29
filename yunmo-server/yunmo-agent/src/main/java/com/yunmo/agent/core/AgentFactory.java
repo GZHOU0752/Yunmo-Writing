@@ -1,8 +1,10 @@
 package com.yunmo.agent.core;
 
 import com.yunmo.common.enums.AgentType;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.domain.repository.AgentModelConfigRepository;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -10,28 +12,39 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 
 /**
- * Agent 工厂 — 使用 LangChain4j AiServices 或直接 ChatModel 创建 Agent
+ * Agent 工厂 — 使用 LangChain4j ChatLanguageModel 创建 Agent
  * 替代 Python agents.create_agent_instance()
  */
 @Component
 public class AgentFactory {
 
     private static final Logger log = LoggerFactory.getLogger(AgentFactory.class);
-    private final ProviderRegistry registry;
+    private final ChatModelFactory modelFactory;
+    private final AgentModelConfigRepository configRepo;
 
-    public AgentFactory(ProviderRegistry registry) {
-        this.registry = registry;
+    public AgentFactory(ChatModelFactory modelFactory, AgentModelConfigRepository configRepo) {
+        this.modelFactory = modelFactory;
+        this.configRepo = configRepo;
     }
 
     /**
-     * 创建 LangChain4j ChatModel 包装的 Agent
-     * 对需要 Tool calling 的 Agent 用 AiServices；纯文本生成直接 ChatModel
+     * 创建同步 ChatLanguageModel（供 Pipeline Stage 使用）
      */
-    public MultiProviderChatModel createChatModel(AgentSpec spec) {
-        log.info("创建 Agent ChatModel: {} (provider={}, model={})",
-                spec.name(), spec.provider(), spec.model());
-        return MultiProviderChatModel.create(
-                registry.get(spec.provider()), spec.model());
+    public ChatLanguageModel createChatModel(AgentSpec spec) {
+        String[] resolved = resolveModel(spec.type().name(), spec.provider(), spec.model());
+        log.info("创建同步 ChatModel: {} (provider={}, model={})",
+                spec.name(), resolved[0], resolved[1]);
+        return modelFactory.getSyncModel(resolved[0], resolved[1]);
+    }
+
+    /**
+     * 创建流式 StreamingChatLanguageModel（供 WriteChapterStage 使用）
+     */
+    public StreamingChatLanguageModel createStreamingChatModel(AgentSpec spec) {
+        String[] resolved = resolveModel(spec.type().name(), spec.provider(), spec.model());
+        log.info("创建流式 ChatModel: {} (provider={}, model={})",
+                spec.name(), resolved[0], resolved[1]);
+        return modelFactory.getStreamingModel(resolved[0], resolved[1]);
     }
 
     /** 缓存 AgentSpec，避免重复创建 */
@@ -49,73 +62,89 @@ public class AgentFactory {
         }
     }
 
+    /**
+     * 从数据库解析 Agent 的 provider/model 配置，若无配置或禁用则使用默认值
+     */
+    private String[] resolveModel(String agentType, String defaultProvider, String defaultModel) {
+        try {
+            var config = configRepo.findByAgentType(agentType);
+            if (config.isPresent() && config.get().isEnabled()) {
+                return new String[]{config.get().getProvider(), config.get().getModel()};
+            }
+        } catch (Exception e) {
+            // DB not available, use defaults
+            log.debug("无法从数据库加载 {} 的模型配置，使用默认值", agentType);
+        }
+        return new String[]{defaultProvider, defaultModel};
+    }
+
     private Map<AgentType, AgentSpec> buildSpecs(Map<AgentType, String> systemPrompts) {
         Map<AgentType, AgentSpec> specs = new LinkedHashMap<>();
         specs.put(AgentType.WRITER, AgentSpec.of(
                 AgentType.WRITER,
                 systemPrompts.getOrDefault(AgentType.WRITER, defaultWriterPrompt()),
                 List.of("think_tool"),
-                "deepseek", "deepseek-v4-pro"
+                resolveModel("WRITER", "deepseek", "deepseek-v4-pro")
         ));
         specs.put(AgentType.ARCHITECT, AgentSpec.of(
                 AgentType.ARCHITECT,
                 systemPrompts.getOrDefault(AgentType.ARCHITECT, defaultArchitectPrompt()),
                 List.of("think_tool"),
-                "deepseek", "deepseek-v4-pro"
+                resolveModel("ARCHITECT", "deepseek", "deepseek-v4-pro")
         ));
         specs.put(AgentType.SUPERVISOR, AgentSpec.of(
                 AgentType.SUPERVISOR,
                 systemPrompts.getOrDefault(AgentType.SUPERVISOR, defaultSupervisorPrompt()),
                 List.of("think_tool", "ls_files", "read_file", "write_file"),
-                "deepseek", "deepseek-v4-pro"
+                resolveModel("SUPERVISOR", "deepseek", "deepseek-v4-pro")
         ));
         specs.put(AgentType.INSPECTOR, AgentSpec.of(
                 AgentType.INSPECTOR,
                 systemPrompts.getOrDefault(AgentType.INSPECTOR, defaultInspectorPrompt()),
                 List.of("think_tool", "scan_forbidden_terms", "check_consistency"),
-                "kimi", "kimi-k2-0719"  // K2: 128K上下文，远优于8K
+                resolveModel("INSPECTOR", "kimi", "kimi-k2-0719")  // K2: 128K上下文，远优于8K
         ));
         specs.put(AgentType.GUARDIAN, AgentSpec.of(
                 AgentType.GUARDIAN,
                 systemPrompts.getOrDefault(AgentType.GUARDIAN, defaultGuardianPrompt()),
                 List.of("think_tool", "scan_forbidden_terms"),
-                "qwen", "qwen-plus"
+                resolveModel("GUARDIAN", "qwen", "qwen-plus")
         ));
         specs.put(AgentType.CUSTODIAN, AgentSpec.of(
                 AgentType.CUSTODIAN,
                 systemPrompts.getOrDefault(AgentType.CUSTODIAN, defaultCustodianPrompt()),
                 List.of("think_tool", "check_consistency"),
-                "qwen", "qwen-plus"
+                resolveModel("CUSTODIAN", "qwen", "qwen-plus")
         ));
         specs.put(AgentType.PLEASURE_BEAT, AgentSpec.of(
                 AgentType.PLEASURE_BEAT,
                 systemPrompts.getOrDefault(AgentType.PLEASURE_BEAT, defaultPleasureBeatPrompt()),
                 List.of("think_tool"),
-                "deepseek", "deepseek-v4-pro"
+                resolveModel("PLEASURE_BEAT", "deepseek", "deepseek-v4-pro")
         ));
         specs.put(AgentType.OUTLINER, AgentSpec.of(
                 AgentType.OUTLINER,
                 systemPrompts.getOrDefault(AgentType.OUTLINER, defaultOutlinerPrompt()),
                 List.of("think_tool"),
-                "deepseek", "deepseek-v4-pro"
+                resolveModel("OUTLINER", "deepseek", "deepseek-v4-pro")
         ));
         specs.put(AgentType.POLISHER, AgentSpec.of(
                 AgentType.POLISHER,
                 systemPrompts.getOrDefault(AgentType.POLISHER, defaultPolisherPrompt()),
                 List.of("think_tool"),
-                "qwen", "qwen-max"  // Max: 润色质量直接影响输出，不能省
+                resolveModel("POLISHER", "qwen", "qwen-max")  // Max: 润色质量直接影响输出，不能省
         ));
         specs.put(AgentType.EDITOR, AgentSpec.of(
                 AgentType.EDITOR,
                 systemPrompts.getOrDefault(AgentType.EDITOR, defaultEditorPrompt()),
                 List.of("think_tool"),
-                "qwen", "qwen-max"  // Max: 评分+批评需要更强推理
+                resolveModel("EDITOR", "qwen", "qwen-max")  // Max: 评分+批评需要更强推理
         ));
         specs.put(AgentType.READER, AgentSpec.of(
                 AgentType.READER,
                 systemPrompts.getOrDefault(AgentType.READER, defaultReaderPrompt()),
                 List.of("think_tool"),
-                "qwen", "qwen-max"  // Max: 老书虫需要更强的鉴赏力
+                resolveModel("READER", "qwen", "qwen-max")  // Max: 老书虫需要更强的鉴赏力
         ));
         return specs;
     }

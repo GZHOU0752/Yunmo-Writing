@@ -1,11 +1,12 @@
 package com.yunmo.service.outline;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
-import com.yunmo.common.dto.LLMResponse;
 import com.yunmo.domain.entity.OutlineNode;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.adapter.FluxStreamingAdapter;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,12 +23,14 @@ import java.util.*;
 public class OutlineCompletionService {
 
     private static final Logger log = LoggerFactory.getLogger(OutlineCompletionService.class);
-    private final ProviderRegistry providerRegistry;
+    private final ChatLanguageModel chatModel;
+    private final StreamingChatLanguageModel streamingModel;
     private final OutlineNodeService outlineNodeService;
 
-    public OutlineCompletionService(ProviderRegistry providerRegistry,
+    public OutlineCompletionService(ChatModelFactory modelFactory,
                                      OutlineNodeService outlineNodeService) {
-        this.providerRegistry = providerRegistry;
+        this.chatModel = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
+        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-v4-pro");
         this.outlineNodeService = outlineNodeService;
     }
 
@@ -61,10 +64,9 @@ public class OutlineCompletionService {
                 default -> "节点";
             };
 
-            LLMProvider writer = providerRegistry.get("deepseek");
-            List<LLMMessage> messages = List.of(
-                LLMMessage.system("你是小说大纲设计师。根据上级大纲生成简洁有力的下级" + levelName + "节点。"),
-                LLMMessage.user(String.format("""
+            List<dev.langchain4j.data.message.ChatMessage> messages = List.of(
+                SystemMessage.from("你是小说大纲设计师。根据上级大纲生成简洁有力的下级" + levelName + "节点。"),
+                UserMessage.from(String.format("""
                         基于以下【上级大纲】，生成 %d 个下级%s节点。
                         每个节点包含：
                         - title: 简洁标题（≤15字）
@@ -82,7 +84,7 @@ public class OutlineCompletionService {
                         count, levelName, parentTitle, parentContent, causalSentence))
             );
 
-            return writer.generateStream(messages, LLMConfig.creative("deepseek-v4-pro"));
+            return FluxStreamingAdapter.toFlux(streamingModel, messages);
         }).subscribeOn(Schedulers.boundedElastic()).flatMapMany(flux -> flux);
     }
 
@@ -107,10 +109,9 @@ public class OutlineCompletionService {
             default -> "节点";
         };
 
-        LLMProvider writer = providerRegistry.get("deepseek");
-        List<LLMMessage> messages = List.of(
-            LLMMessage.system("你是小说大纲设计师。根据上级大纲生成简洁有力的下级" + levelName + "节点。"),
-            LLMMessage.user(String.format("""
+        List<dev.langchain4j.data.message.ChatMessage> messages = List.of(
+            SystemMessage.from("你是小说大纲设计师。根据上级大纲生成简洁有力的下级" + levelName + "节点。"),
+            UserMessage.from(String.format("""
                     基于以下【上级大纲】，生成 %d 个下级%s节点。
                     每个节点包含：
                     - title: 简洁标题（≤15字）
@@ -128,8 +129,8 @@ public class OutlineCompletionService {
                     count, levelName, parentTitle, parentContent, causalSentence))
         );
 
-        LLMResponse response = writer.generate(messages, LLMConfig.creative("deepseek-v4-pro"));
-        return parseAndSave(novelId, parentId, childLevel, response.content());
+        var response = chatModel.generate(messages);
+        return parseAndSave(novelId, parentId, childLevel, response.content().text());
     }
 
     /** 解析 LLM 返回的 JSON 并创建 OutlineNode */

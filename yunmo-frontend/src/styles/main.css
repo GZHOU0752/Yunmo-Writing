@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
 @import "tailwindcss";
 
 /* ============================================
@@ -1019,29 +1018,16 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   line-height: 1.8;
 }
 
-/* ----- 呼吸脉冲（仅状态指示器，非装饰） ----- */
-@keyframes breathe {
+/* ----- 呼吸脉冲（弱版本，仅透明度） ----- */
+@keyframes breathe-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
 .breathe {
-  animation: breathe 2.5s ease-in-out infinite;
+  animation: breathe-soft 2.5s ease-in-out infinite;
 }
 
-/* ----- 渐进入场（列表交错） ----- */
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.card-enter {
-  animation: cardEnter 0.45s cubic-bezier(0.16,1,0.3,1) both;
-}
+/* ----- 渐进入场（复用上方 cardReveal，此处仅补充 measure 等工具类） ----- */
 
 /* ----- 文本行宽限制（最优阅读体验） ----- */
 .measure-readable {
@@ -1149,6 +1135,41 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   opacity: 0;
 }
 
+/* ----- 章节层级标题 ----- */
+.volume-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--yunmo-accent);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.volume-header:hover {
+  background: rgba(139, 58, 58, 0.06);
+}
+.volume-header.collapsed {
+  color: var(--yunmo-text-caption);
+}
+
+/* ----- Diff 视图 ----- */
+.diff-added {
+  background: rgba(90, 122, 90, 0.12);
+  color: #2d5a2d;
+  border-left: 2px solid var(--yunmo-green);
+}
+.diff-removed {
+  background: rgba(179, 68, 58, 0.12);
+  color: #8b2020;
+  text-decoration: line-through;
+  opacity: 0.7;
+  border-left: 2px solid var(--yunmo-red);
+}
+
 /* ----- 编辑器纸张叠影 — 纸稿堆叠的书写台感 ----- */
 .editor-page {
   position: relative;
@@ -1233,6 +1254,37 @@ h4 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-sp
   background: var(--yunmo-green);
   border-color: var(--yunmo-green);
   color: #fff;
+}
+
+/* ============================================
+   云墨 · 全屏面板（大纲/角色展开）
+   ============================================ */
+
+.fullscreen-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--yunmo-paper);
+  display: flex;
+  flex-direction: column;
+  animation: panelSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fullscreen-panel {
+    animation: none;
+  }
 }
 
 /* ============================================

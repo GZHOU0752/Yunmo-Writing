@@ -1,12 +1,13 @@
 package com.yunmo.service.chat;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Chapter;
 import com.yunmo.domain.repository.ChapterRepository;
 import com.yunmo.domain.repository.NovelRepository;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.adapter.FluxStreamingAdapter;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,14 +27,14 @@ public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
 
-    private final ProviderRegistry providerRegistry;
+    private final StreamingChatLanguageModel streamingModel;
     private final ChapterRepository chapterRepo;
     private final NovelRepository novelRepo;
 
-    public ChatService(ProviderRegistry providerRegistry,
+    public ChatService(ChatModelFactory modelFactory,
                        ChapterRepository chapterRepo,
                        NovelRepository novelRepo) {
-        this.providerRegistry = providerRegistry;
+        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-v4-pro");
         this.chapterRepo = chapterRepo;
         this.novelRepo = novelRepo;
     }
@@ -52,11 +53,6 @@ public class ChatService {
             .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
             .flatMapMany(context -> Flux.defer(() -> {
             try {
-                LLMProvider provider = providerRegistry.get("deepseek");
-                if (provider == null) {
-                    return Flux.just("{\"error\":\"LLM 服务不可用\"}");
-                }
-
                 // 构建对话历史
                 StringBuilder historyText = new StringBuilder();
                 if (history != null && !history.isEmpty()) {
@@ -97,10 +93,8 @@ public class ChatService {
                     historyText.length() > 0 ? historyText.toString() : "（首次对话）",
                     message);
 
-                return provider.generateStream(
-                    List.of(LLMMessage.user(prompt)),
-                    LLMConfig.creative("deepseek-v4-pro")
-                ).map(chunk -> {
+                return FluxStreamingAdapter.toFlux(streamingModel, List.of(UserMessage.from(prompt)))
+                .map(chunk -> {
                     if (chunk != null && !chunk.isEmpty()) {
                         return "{\"token\":\"" + escapeJson(chunk) + "\"}";
                     }

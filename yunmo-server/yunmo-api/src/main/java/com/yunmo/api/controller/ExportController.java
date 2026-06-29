@@ -47,4 +47,28 @@ public class ExportController {
                     .body((Resource) new ByteArrayResource(epub));
         }).subscribeOn(Schedulers.boundedElastic());
     }
+
+    @GetMapping("/export/html")
+    public Mono<ResponseEntity<Resource>> exportHtml(@PathVariable String novelId) {
+        return Mono.fromCallable(() -> {
+            String content = exportService.exportHtml(novelId);
+            String filename = URLEncoder.encode("novel.html", StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                    .contentType(MediaType.TEXT_HTML)
+                    .body((Resource) new ByteArrayResource(content.getBytes(StandardCharsets.UTF_8)));
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @GetMapping("/export/md")
+    public Mono<ResponseEntity<Resource>> exportMarkdown(@PathVariable String novelId) {
+        return Mono.fromCallable(() -> {
+            String content = exportService.exportMarkdown(novelId);
+            String filename = URLEncoder.encode("novel.md", StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                    .contentType(MediaType.parseMediaType("text/markdown"))
+                    .body((Resource) new ByteArrayResource(content.getBytes(StandardCharsets.UTF_8)));
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
 }

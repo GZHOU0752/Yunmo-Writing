@@ -4,7 +4,7 @@ import com.yunmo.agent.core.AgentFactory;
 import com.yunmo.agent.core.AgentSpec;
 import org.springframework.beans.factory.annotation.Qualifier;
 import com.yunmo.common.enums.AgentType;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;

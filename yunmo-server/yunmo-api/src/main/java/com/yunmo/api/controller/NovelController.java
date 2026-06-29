@@ -2,17 +2,21 @@ package com.yunmo.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.common.config.AppProperties;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Chapter;
 import com.yunmo.domain.entity.Novel;
 import com.yunmo.domain.entity.ReferenceMaterial;
 import com.yunmo.domain.repository.ChapterRepository;
 import com.yunmo.domain.repository.NovelRepository;
 import com.yunmo.domain.repository.ReferenceMaterialRepository;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import com.yunmo.service.NovelCascadeService;
 import com.yunmo.service.style.StyleAnalysisService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -37,21 +41,21 @@ public class NovelController {
     private final AppProperties appProperties;
     private final NovelCascadeService cascadeService;
     private final ReferenceMaterialRepository refRepo;
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final StyleAnalysisService styleAnalysisService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public NovelController(NovelRepository novelRepo, ChapterRepository chapterRepo,
                            AppProperties appProperties, NovelCascadeService cascadeService,
                            ReferenceMaterialRepository refRepo,
-                           ProviderRegistry providerRegistry,
+                           ChatModelFactory modelFactory,
                            StyleAnalysisService styleAnalysisService) {
         this.novelRepo = novelRepo;
         this.chapterRepo = chapterRepo;
         this.appProperties = appProperties;
         this.cascadeService = cascadeService;
         this.refRepo = refRepo;
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
         this.styleAnalysisService = styleAnalysisService;
     }
 
@@ -71,6 +75,7 @@ public class NovelController {
     }
 
     @GetMapping("/{id}")
+    @Cacheable(value = "novels", key = "#id", unless = "#result == null || !#result.statusCode.is2xxSuccessful()")
     public Mono<ResponseEntity<Novel>> get(@PathVariable String id) {
         return Mono.fromCallable(() ->
                 novelRepo.findById(id)
@@ -96,6 +101,7 @@ public class NovelController {
     }
 
     @PatchMapping("/{id}")
+    @CacheEvict(value = "novels", key = "#id")
     public Mono<ResponseEntity<Novel>> update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         return Mono.fromCallable(() ->
                 novelRepo.findById(id)
@@ -115,6 +121,7 @@ public class NovelController {
     }
 
     @DeleteMapping("/{id}")
+    @CacheEvict(value = "novels", key = "#id")
     public Mono<ResponseEntity<?>> delete(@PathVariable String id) {
         return Mono.fromCallable(() -> {
             boolean deleted = cascadeService.cascadeDelete(id);
@@ -132,8 +139,7 @@ public class NovelController {
             var novel = novelRepo.findById(novelId).orElse(null);
             if (novel == null) throw new IllegalArgumentException("小说不存在");
 
-            var provider = providerRegistry.get("deepseek");
-            if (provider == null) throw new RuntimeException("LLM 服务不可用");
+            ChatLanguageModel model = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
 
             // 收集上下文
             StringBuilder context = new StringBuilder();
@@ -226,12 +232,9 @@ public class NovelController {
                 - 不要写"可以""也可以""或者"这种模棱两可的词，每个点给确定的方向
                 """, context.toString());
 
-            var response = provider.generate(
-                List.of(LLMMessage.user(prompt)),
-                LLMConfig.outline("deepseek-v4-pro")
-            );
+            Response<AiMessage> response = model.generate(UserMessage.from(prompt));
 
-            String generatedOutline = response.content().trim();
+            String generatedOutline = response.content().text().trim();
             // 重新获取最新版本再保存，避免覆盖 LLM 调用期间的并发修改
             var freshNovel = novelRepo.findById(novelId).orElse(novel);
             freshNovel.setOutline(generatedOutline);

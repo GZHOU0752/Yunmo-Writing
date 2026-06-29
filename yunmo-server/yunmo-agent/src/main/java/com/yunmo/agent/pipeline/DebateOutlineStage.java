@@ -3,7 +3,7 @@ package com.yunmo.agent.pipeline;
 import com.yunmo.agent.core.AgentFactory;
 import com.yunmo.agent.core.AgentSpec;
 import com.yunmo.common.enums.AgentType;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;

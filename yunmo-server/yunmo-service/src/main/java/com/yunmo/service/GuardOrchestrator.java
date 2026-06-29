@@ -6,7 +6,7 @@ import com.yunmo.common.enums.AgentType;
 import com.yunmo.common.util.AntiAIPatterns;
 import com.yunmo.common.util.AntiAIPatterns.DiagnosisResult;
 import com.yunmo.common.util.AntiAIPatterns.Finding;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;
@@ -137,7 +137,7 @@ public class GuardOrchestrator {
 
         try {
             AgentSpec readerSpec = specs.get(AgentType.READER);
-            MultiProviderChatModel reader = agentFactory.createChatModel(readerSpec);
+            ChatLanguageModel reader = agentFactory.createChatModel(readerSpec);
 
             String prompt = buildContinuityPrompt(content, chapterNumber, contextText, chapterPlan);
             var response = reader.generate(

@@ -4,11 +4,12 @@ import com.yunmo.agent.core.AgentFactory;
 import com.yunmo.agent.core.AgentSpec;
 import com.yunmo.agent.hook.HookSelection;
 import com.yunmo.agent.hook.HookSystem;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.common.enums.AgentType;
+import com.yunmo.llm.adapter.FluxStreamingAdapter;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -144,24 +145,22 @@ public class WriteChapterStage implements PipelinePlugin {
         HookSelection hookSelection = state.get("hook_selection", HookSelection.class);
 
         String writingPrompt = buildStreamPrompt(state);
-        var writerModel = agentFactory.createChatModel(agentSpecs.get(AgentType.WRITER));
+        StreamingChatLanguageModel streamingModel = agentFactory.createStreamingChatModel(
+                agentSpecs.get(AgentType.WRITER));
         String systemPrompt = buildSystemPromptWithHooks(
                 agentSpecs.get(AgentType.WRITER).systemPrompt(), hookSelection);
 
-        // 构建 LLM 消息列表
-        List<LLMMessage> messages = List.of(
-                LLMMessage.system(systemPrompt),
-                LLMMessage.user(writingPrompt)
+        // 构建 LangChain4j 消息列表
+        List<ChatMessage> chatMessages = List.of(
+                SystemMessage.from(systemPrompt),
+                UserMessage.from(writingPrompt)
         );
-
-        String modelName = writerModel.modelName();
-        LLMConfig config = LLMConfig.creative(modelName != null ? modelName : "deepseek-v4-pro");
 
         // 用于累积完整章节内容的 StringBuilder
         StringBuilder fullContent = new StringBuilder();
 
         // 流式调用 — Flux<String> token 流
-        return writerModel.generateStream(messages, config)
+        return FluxStreamingAdapter.toFlux(streamingModel, chatMessages)
                 .map(token -> {
                     fullContent.append(token);
                     return new StageEvent("write_chapter", "writing",

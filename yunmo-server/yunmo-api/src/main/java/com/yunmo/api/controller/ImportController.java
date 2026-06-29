@@ -1,8 +1,6 @@
 package com.yunmo.api.controller;
 
 import com.yunmo.common.config.AppProperties;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Chapter;
 import com.yunmo.domain.entity.Character;
 import com.yunmo.domain.entity.Novel;
@@ -11,7 +9,11 @@ import com.yunmo.domain.repository.CharacterRepository;
 import com.yunmo.domain.repository.NovelRepository;
 import com.yunmo.common.enums.ChapterStatus;
 import com.yunmo.common.enums.CharacterRole;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +35,7 @@ public class ImportController {
     private final NovelRepository novelRepo;
     private final ChapterRepository chapterRepo;
     private final CharacterRepository characterRepo;
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -44,12 +46,12 @@ public class ImportController {
     );
 
     public ImportController(NovelRepository novelRepo, ChapterRepository chapterRepo,
-                            CharacterRepository characterRepo, ProviderRegistry providerRegistry,
+                            CharacterRepository characterRepo, ChatModelFactory modelFactory,
                             AppProperties appProperties) {
         this.novelRepo = novelRepo;
         this.chapterRepo = chapterRepo;
         this.characterRepo = characterRepo;
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
         this.appProperties = appProperties;
     }
 
@@ -299,8 +301,7 @@ public class ImportController {
             Novel novel = novelRepo.findById(novelId).orElse(null);
             if (novel == null) throw new IllegalArgumentException("小说不存在");
 
-            var provider = providerRegistry.get("deepseek");
-            if (provider == null) throw new RuntimeException("LLM 服务不可用");
+            ChatLanguageModel model = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
 
             // 组装样本内容：每章取前500字
             var chapters = chapterRepo.findByNovelIdOrderByChapterNumberAsc(novelId);
@@ -351,12 +352,9 @@ public class ImportController {
                 - 不要编造未出场的信息
                 """, novel.getTitle(), maxChapters, samples.toString());
 
-            var response = provider.generate(
-                List.of(LLMMessage.user(prompt)),
-                LLMConfig.creative("deepseek-v4-pro")
-            );
+            Response<AiMessage> response = model.generate(UserMessage.from(prompt));
 
-            String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content());
+            String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content().text());
             if (json == null || json.isBlank()) json = "{}";
 
             @SuppressWarnings("unchecked")

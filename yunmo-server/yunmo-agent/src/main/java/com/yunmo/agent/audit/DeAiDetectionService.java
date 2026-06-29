@@ -1,10 +1,11 @@
 package com.yunmo.agent.audit;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
-import com.yunmo.common.dto.LLMResponse;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,10 +22,10 @@ import java.util.regex.Pattern;
 public class DeAiDetectionService {
 
     private static final Logger log = LoggerFactory.getLogger(DeAiDetectionService.class);
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
 
-    public DeAiDetectionService(ProviderRegistry providerRegistry) {
-        this.providerRegistry = providerRegistry;
+    public DeAiDetectionService(ChatModelFactory modelFactory) {
+        this.modelFactory = modelFactory;
     }
 
     // 30+ 高频 AI 味正则模式（预编译 Pattern 避免重复编译开销）
@@ -96,11 +97,11 @@ public class DeAiDetectionService {
 
     public double detectByLLM(String text) {
         try {
-            LLMProvider provider = providerRegistry.get("qwen");
+            ChatLanguageModel model = modelFactory.getSyncModel("qwen", "qwen-plus");
             String sample = text.length() > 2000 ? text.substring(0, 2000) : text;
 
-            LLMResponse response = provider.generate(List.of(
-                LLMMessage.system("""
+            Response<AiMessage> response = model.generate(
+                SystemMessage.from("""
                     你是文本自然度检测专家。阅读以下小说片段，判断它读起来更像"人写的"还是"AI 生成的"。
                     评分标准（0-10分）：
                     - 0-2分：明显的 AI 生成痕迹（大量模板句式、缺乏个性、情感空洞）
@@ -110,10 +111,10 @@ public class DeAiDetectionService {
                     - 9-10分：完全像人写的，有鲜明个性和自然韵律
 
                     只输出一个数字（0-10），不要输出其他任何文字。"""),
-                LLMMessage.user("请对以下小说片段进行自然度评分：\n\n" + sample)
-            ), LLMConfig.precise("qwen-plus"));
+                UserMessage.from("请对以下小说片段进行自然度评分：\n\n" + sample)
+            );
 
-            String content = response.content().trim();
+            String content = response.content().text().trim();
             double score = 5.0;
             try {
                 score = Double.parseDouble(content.replaceAll("[^0-9.]", ""));

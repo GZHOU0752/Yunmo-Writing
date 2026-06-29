@@ -1,10 +1,10 @@
 package com.yunmo.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import com.yunmo.service.memory.MemoryBudget.MemoryPack;
 import com.yunmo.service.memory.MemoryItem;
 import com.yunmo.service.memory.MemoryOrchestrator;
@@ -27,15 +27,15 @@ public class IncrementalMemoryService {
 
     private static final Logger log = LoggerFactory.getLogger(IncrementalMemoryService.class);
     private final ObjectMapper mapper = new ObjectMapper();
-    private final ProviderRegistry providerRegistry;
+    private final ChatLanguageModel chatModel;
     private final MemoryOrchestrator memoryOrchestrator;
 
     /** 自动压缩触发章数间隔 */
     private static final int COMPACT_CHAPTER_INTERVAL = 50;
 
-    public IncrementalMemoryService(ProviderRegistry providerRegistry,
+    public IncrementalMemoryService(ChatModelFactory modelFactory,
                                     MemoryOrchestrator memoryOrchestrator) {
-        this.providerRegistry = providerRegistry;
+        this.chatModel = modelFactory.getSyncModel("qwen", "qwen-plus");
         this.memoryOrchestrator = memoryOrchestrator;
     }
 
@@ -480,7 +480,6 @@ public class IncrementalMemoryService {
 
     /** 调用轻量LLM (Qwen) 生成100-200字语义摘要 */
     private String extractSummaryWithLLM(String content) {
-        LLMProvider qwen = providerRegistry.get("qwen");
         String clean = content.replaceAll("&#\\d+;", "").replaceAll("\\s+", "");
         String sample = clean.length() > 3000 ? clean.substring(0, 3000) : clean;
 
@@ -491,11 +490,11 @@ public class IncrementalMemoryService {
 
             直接输出摘要文本，不要加任何标记或说明。""", sample);
 
-        var response = qwen.generate(
-            List.of(LLMMessage.user(prompt)),
-            LLMConfig.creative("qwen-plus")
+        var response = chatModel.generate(
+            SystemMessage.from("你是一位小说摘要专家。"),
+            UserMessage.from(prompt)
         );
-        String summary = response.content().trim();
+        String summary = response.content().text().trim();
         // 限制最大长度
         return summary.length() > 300 ? summary.substring(0, 300) : summary;
     }

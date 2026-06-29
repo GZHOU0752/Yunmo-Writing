@@ -1,10 +1,11 @@
 package com.yunmo.service.outline;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.OutlineNode;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.adapter.FluxStreamingAdapter;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,18 +23,18 @@ import java.util.List;
 public class OutlineDiscussionService {
 
     private static final Logger log = LoggerFactory.getLogger(OutlineDiscussionService.class);
-    private final ProviderRegistry providerRegistry;
+    private final StreamingChatLanguageModel streamingModel;
     private final OutlineNodeService outlineNodeService;
     private final com.yunmo.domain.repository.ChapterRepository chapterRepo;
     private final com.yunmo.domain.repository.CharacterRepository characterRepo;
     private final com.yunmo.domain.repository.NovelRepository novelRepo;
 
-    public OutlineDiscussionService(ProviderRegistry providerRegistry,
+    public OutlineDiscussionService(ChatModelFactory modelFactory,
                                      OutlineNodeService outlineNodeService,
                                      com.yunmo.domain.repository.ChapterRepository chapterRepo,
                                      com.yunmo.domain.repository.CharacterRepository characterRepo,
                                      com.yunmo.domain.repository.NovelRepository novelRepo) {
-        this.providerRegistry = providerRegistry;
+        this.streamingModel = modelFactory.getStreamingModel("deepseek", "deepseek-v4-pro");
         this.outlineNodeService = outlineNodeService;
         this.chapterRepo = chapterRepo;
         this.characterRepo = characterRepo;
@@ -47,11 +48,6 @@ public class OutlineDiscussionService {
     public Flux<String> planChapter(String novelId, int chapterNumber, String userAnswers) {
         return Flux.defer(() -> {
             try {
-                LLMProvider provider = providerRegistry.get("deepseek");
-                if (provider == null) {
-                    return Flux.just("{\"error\":\"LLM 服务不可用\"}");
-                }
-
                 String context = buildOutlineContext(novelId, null);
 
                 // 组装前文章节摘要
@@ -111,10 +107,8 @@ public class OutlineDiscussionService {
                         """, chapterNumber, context, userAnswers);
                 }
 
-                return provider.generateStream(
-                    List.of(LLMMessage.user(prompt)),
-                    LLMConfig.creative("deepseek-v4-pro")
-                ).map(chunk -> {
+                return FluxStreamingAdapter.toFlux(streamingModel, List.of(UserMessage.from(prompt)))
+                .map(chunk -> {
                     if (chunk != null && !chunk.isEmpty()) {
                         return "{\"token\":\"" + escapeJson(chunk) + "\"}";
                     }
@@ -142,11 +136,6 @@ public class OutlineDiscussionService {
     public Flux<String> discuss(String novelId, String nodeId, String userMessage) {
         return Flux.defer(() -> {
             try {
-                LLMProvider provider = providerRegistry.get("deepseek");
-                if (provider == null) {
-                    return Flux.just("{\"error\":\"LLM 服务不可用\"}");
-                }
-
                 // 组装大纲上下文
                 String outlineContext = buildOutlineContext(novelId, nodeId);
 
@@ -170,10 +159,8 @@ public class OutlineDiscussionService {
                     回复控制在 300 字以内，要有洞察力但不说教。用中文回复，像一个有经验的写作伙伴。
                     """, outlineContext, userMessage);
 
-                return provider.generateStream(
-                    List.of(LLMMessage.user(prompt)),
-                    LLMConfig.creative("deepseek-v4-pro")
-                ).map(chunk -> {
+                return FluxStreamingAdapter.toFlux(streamingModel, List.of(UserMessage.from(prompt)))
+                .map(chunk -> {
                     if (chunk != null && !chunk.isEmpty()) {
                         return "{\"token\":\"" + escapeJson(chunk) + "\"}";
                     }

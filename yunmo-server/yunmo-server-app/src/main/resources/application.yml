@@ -13,7 +13,7 @@ spring:
     password: ${MYSQL_PASSWORD:yunmo123}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -22,7 +22,9 @@ spring:
   liquibase:
     enabled: false
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -39,7 +41,7 @@ spring:
 management:
   health:
     redis:
-      enabled: false
+      enabled: true
 
 yunmo:
   app:

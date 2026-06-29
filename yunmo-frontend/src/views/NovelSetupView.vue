@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useNovelStore } from '@/composables/useNovelStore'
+import ModelConfigPanel from '@/components/write/ModelConfigPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,12 +32,14 @@ const outlineText = ref('')
 const generatingOutline = ref(false)
 
 // 完成指示
-const tabCompleted = ref([false, false])
+const tabCompleted = ref([false, false, false])
 
 // 计算属性：是否可以进入下一步
 const canGoNext = computed(() => {
   switch (activeTab.value) {
     case 0: return !!genreId.value
+    case 1: return true  // 大纲可选
+    case 2: return true  // 模型配置可选
     default: return true
   }
 })
@@ -110,7 +113,7 @@ function finish() {
       <!-- 左侧 Tab 导航 -->
       <nav class="w-44 border-r border-[var(--yunmo-border)] bg-[var(--yunmo-paper-light)] flex flex-col py-4 flex-shrink-0">
         <button
-          v-for="(tab, i) in ['类型', '大纲']"
+          v-for="(tab, i) in ['类型', '大纲', '模型配置']"
           :key="i"
           class="setup-tab-item"
           :class="{
@@ -187,6 +190,13 @@ function finish() {
             </div>
           </div>
         </div>
+
+        <!-- Tab 2: 模型配置 -->
+        <div v-if="activeTab === 2">
+          <h2 class="text-xl font-bold mb-2">AI 模型配置</h2>
+          <p class="text-sm mb-6">为每个 AI 角色选择最适合的大模型</p>
+          <ModelConfigPanel />
+        </div>
       </div>
     </div>
 
@@ -200,10 +210,10 @@ function finish() {
 
       <div class="flex items-center gap-3">
         <span class="text-xs">
-          {{ activeTab + 1 }} / 2
+          {{ activeTab + 1 }} / 3
         </span>
         <a-button
-          v-if="activeTab < 1"
+          v-if="activeTab < 2"
           type="primary"
           @click="activeTab++"
           :disabled="!canGoNext"

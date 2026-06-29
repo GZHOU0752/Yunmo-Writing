@@ -1,11 +1,11 @@
 package com.yunmo.service.style;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Novel;
 import com.yunmo.domain.repository.NovelRepository;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,13 +25,13 @@ public class StyleAnalysisService {
 
     private static final Logger log = LoggerFactory.getLogger(StyleAnalysisService.class);
 
-    private final ProviderRegistry providerRegistry;
+    private final ChatLanguageModel chatModel;
     private final NovelRepository novelRepo;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
-    public StyleAnalysisService(ProviderRegistry providerRegistry,
+    public StyleAnalysisService(ChatModelFactory modelFactory,
                                  NovelRepository novelRepo) {
-        this.providerRegistry = providerRegistry;
+        this.chatModel = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
         this.novelRepo = novelRepo;
     }
 
@@ -45,14 +45,6 @@ public class StyleAnalysisService {
                 Map<String, Object> error = new LinkedHashMap<>();
                 error.put("status", "error");
                 error.put("message", "参考文本不能为空");
-                return error;
-            }
-
-            LLMProvider provider = providerRegistry.get("deepseek");
-            if (provider == null) {
-                Map<String, Object> error = new LinkedHashMap<>();
-                error.put("status", "error");
-                error.put("message", "LLM 服务不可用");
                 return error;
             }
 
@@ -93,12 +85,12 @@ public class StyleAnalysisService {
                 """, text);
 
             try {
-                var response = provider.generate(
-                    List.of(LLMMessage.user(prompt)),
-                    LLMConfig.precise("deepseek-v4-pro")
+                var response = chatModel.generate(
+                    SystemMessage.from("你是一位资深的文学评论家和文风分析师。"),
+                    UserMessage.from(prompt)
                 );
 
-                String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content());
+                String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content().text());
                 if (json == null || json.isBlank()) {
                     Map<String, Object> error = new LinkedHashMap<>();
                     error.put("status", "error");

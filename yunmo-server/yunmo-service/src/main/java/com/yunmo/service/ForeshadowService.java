@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.common.enums.ForeshadowStatus;
 import com.yunmo.domain.entity.Foreshadow;
 import com.yunmo.domain.repository.ForeshadowRepository;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;
@@ -25,13 +25,12 @@ public class ForeshadowService {
 
     private static final Logger log = LoggerFactory.getLogger(ForeshadowService.class);
     private final ForeshadowRepository repo;
-    private final MultiProviderChatModel chatModel;
+    private final ChatLanguageModel chatModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ForeshadowService(ForeshadowRepository repo, ProviderRegistry registry) {
+    public ForeshadowService(ForeshadowRepository repo, ChatModelFactory modelFactory) {
         this.repo = repo;
-        this.chatModel = MultiProviderChatModel.create(
-                registry.get("deepseek"), "deepseek-v4-pro");
+        this.chatModel = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
     }
 
     /** 调用 LLM 检测本章新埋设的伏笔 */

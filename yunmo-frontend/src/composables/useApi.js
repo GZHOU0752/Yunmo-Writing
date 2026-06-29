@@ -141,6 +141,12 @@ export function useApi() {
         })
       },
     },
+    /** Agent 模型配置 */
+    agentModels: {
+      list: () => request('/config/agent-models'),
+      update: (configs) => request('/config/agent-models', { method: 'PUT', body: JSON.stringify(configs) }),
+      reset: () => request('/config/agent-models/reset', { method: 'POST' }),
+    },
     auth: {
       login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
       register: (email, password, displayName) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, display_name: displayName }) }),
@@ -151,6 +157,8 @@ export function useApi() {
     export: {
       epub: (novelId) => downloadFile(`/novels/${novelId}/export/epub`, 'novel.epub'),
       txt: (novelId) => downloadFile(`/novels/${novelId}/export/txt`, 'novel.txt'),
+      html: (novelId) => downloadFile(`/novels/${novelId}/export/html`, 'novel.html'),
+      md: (novelId) => downloadFile(`/novels/${novelId}/export/md`, 'novel.md'),
     },
     import: {
       preview: (novelId, text) => request(`/import/to-novel/${novelId}/preview`, { method: 'POST', body: JSON.stringify({ text }) }),

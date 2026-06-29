@@ -7,7 +7,7 @@ import com.yunmo.common.util.AntiAIPatterns;
 import com.yunmo.common.util.AntiAIPatterns.DiagnosisResult;
 import com.yunmo.common.util.AntiAIPatterns.GateResult;
 import com.yunmo.common.util.AntiAIPatterns.Severity;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -55,9 +55,9 @@ public class AdversarialEditStage implements PipelinePlugin {
         AgentSpec readerSpec = specs.get(AgentType.READER);
         AgentSpec writerSpec = specs.get(AgentType.WRITER);
 
-        MultiProviderChatModel editor = agentFactory.createChatModel(editorSpec);
-        MultiProviderChatModel rewriter = agentFactory.createChatModel(rewriterSpec);
-        MultiProviderChatModel reader = agentFactory.createChatModel(readerSpec);
+        ChatLanguageModel editor = agentFactory.createChatModel(editorSpec);
+        ChatLanguageModel rewriter = agentFactory.createChatModel(rewriterSpec);
+        ChatLanguageModel reader = agentFactory.createChatModel(readerSpec);
 
         int chapterNumber = state.get("chapter_number", Integer.class);
         String content = state.get("chapter_content", String.class);
@@ -531,7 +531,7 @@ public class AdversarialEditStage implements PipelinePlugin {
         return text.length() > maxLen ? text.substring(0, maxLen) + "..." : text;
     }
 
-    private int scoreContent(MultiProviderChatModel reader, String systemPrompt, String content) {
+    private int scoreContent(ChatLanguageModel reader, String systemPrompt, String content) {
         try {
             String prompt = buildReaderPrompt(content);
             var response = reader.generate(

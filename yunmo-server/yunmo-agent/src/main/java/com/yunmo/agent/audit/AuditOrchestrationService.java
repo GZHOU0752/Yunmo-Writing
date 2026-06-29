@@ -4,11 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yunmo.agent.audit.AuditDimension.AuditMode;
 import com.yunmo.agent.audit.AuditDimension.AuditTier;
 import com.yunmo.agent.audit.AuditIssue.Severity;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
-import com.yunmo.common.dto.LLMResponse;
-import com.yunmo.llm.provider.LLMProvider;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -36,13 +35,13 @@ public class AuditOrchestrationService {
 
     private static final Logger log = LoggerFactory.getLogger(AuditOrchestrationService.class);
 
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final DeAiDetectionService deAiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AuditOrchestrationService(ProviderRegistry providerRegistry,
+    public AuditOrchestrationService(ChatModelFactory modelFactory,
                                       DeAiDetectionService deAiService) {
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
         this.deAiService = deAiService;
     }
 
@@ -145,21 +144,18 @@ public class AuditOrchestrationService {
                                  Map<String, Object> deAiResult,
                                  AuditMode mode, boolean includeFanfic) {
         try {
-            LLMProvider inspector = providerRegistry.get("kimi");
+            ChatLanguageModel inspector = modelFactory.getSyncModel("kimi", "kimi-k2-0719");
 
             String systemPrompt = AuditPromptBuilder.buildInspectorSystemPrompt(
                     genreConfig, mode, includeFanfic);
             String userPrompt = AuditPromptBuilder.buildInspectionUserPrompt(
                     content, guardianResult, deAiResult, mode);
 
-            LLMResponse response = inspector.generate(
-                List.of(
-                    LLMMessage.system(systemPrompt),
-                    LLMMessage.user(userPrompt)
-                ),
-                LLMConfig.creative("kimi-k2-0719")
+            var response = inspector.generate(
+                SystemMessage.from(systemPrompt),
+                UserMessage.from(userPrompt)
             );
-            return response.content();
+            return response.content().text();
         } catch (Exception e) {
             log.error("[审计] Inspector 37维审计调用失败", e);
             // 返回一个pass的fallback JSON，确保fail-open不阻断

@@ -34,4 +34,30 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-antd': ['ant-design-vue', '@ant-design/icons-vue'],
+          'vendor-tiptap': [
+            '@tiptap/vue-3',
+            '@tiptap/starter-kit',
+            '@tiptap/extension-placeholder',
+            '@tiptap/extension-underline',
+          ],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
+  optimizeDeps: {
+    include: [
+      'ant-design-vue',
+      '@ant-design/icons-vue',
+      '@tiptap/vue-3',
+      '@tiptap/starter-kit',
+    ],
+  },
 })

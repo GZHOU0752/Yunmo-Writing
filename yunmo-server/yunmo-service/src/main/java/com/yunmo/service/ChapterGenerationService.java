@@ -20,10 +20,12 @@ import com.yunmo.service.rag.ReferenceMaterialService;
 import com.yunmo.service.style.StyleRouter;
 import com.yunmo.service.style.StyleSelection;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.ReferenceMaterial;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -68,7 +70,7 @@ public class ChapterGenerationService {
     private final StyleRouter styleRouter;
     private final EntityLifecycleService entityLifecycleService;
     private final CheckpointService checkpointService;
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final ObjectMapper objectMapper = new ObjectMapper();
     // P3-3: 插件注册中心（可选注入，用于配置化管线）
     private final PipelinePluginRegistry pluginRegistry;
@@ -106,7 +108,7 @@ public class ChapterGenerationService {
                                      StyleRouter styleRouter,
                                      EntityLifecycleService entityLifecycleService,
                                      CheckpointService checkpointService,
-                                     ProviderRegistry providerRegistry,
+                                     ChatModelFactory modelFactory,
                                      PipelinePluginRegistry pluginRegistry,
                                      PipelineProperties pipelineProperties,
                                      ChapterCommitService chapterCommitService,
@@ -138,7 +140,7 @@ public class ChapterGenerationService {
         this.styleRouter = styleRouter;
         this.entityLifecycleService = entityLifecycleService;
         this.checkpointService = checkpointService;
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
         this.pluginRegistry = pluginRegistry;
         this.pipelineProperties = pipelineProperties;
         this.chapterCommitService = chapterCommitService;
@@ -767,8 +769,8 @@ public class ChapterGenerationService {
      * 同时更新已有角色的 lastAppearanceChapter（基于章节内容中的人名匹配）。
      */
     private void autoExtractNewCharacters(String novelId, int chapterNumber, String content) {
-        var provider = providerRegistry.get("deepseek");
-        if (provider == null || content == null || content.length() < 500) {
+        ChatLanguageModel model = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
+        if (content == null || content.length() < 500) {
             // 即使没有 LLM，也更新已有角色出场章节
             updateExistingCharacterAppearances(novelId, chapterNumber, content);
             return;
@@ -788,13 +790,10 @@ public class ChapterGenerationService {
                 [{"name":"角色名","role":"SUPPORTING","description":"描述","importance":5}]
                 """, content.length() > 1500 ? content.substring(0, 1500) : content);
 
-            var response = provider.generate(
-                List.of(LLMMessage.user(prompt)),
-                LLMConfig.precise("deepseek-v4-pro")
-            );
+            Response<AiMessage> response = model.generate(UserMessage.from(prompt));
 
             // 解析JSON
-            String json = response.content().replaceAll("```json|```", "").trim();
+            String json = response.content().text().replaceAll("```json|```", "").trim();
             if (!json.startsWith("[")) {
                 int start = json.indexOf('[');
                 int end = json.lastIndexOf(']');

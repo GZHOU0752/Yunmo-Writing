@@ -1,6 +1,8 @@
 package com.yunmo.agent.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,7 +27,10 @@ public class ScanForbiddenTermsTool {
      * @param forbiddenTermsStr 禁止术语 JSON 数组: ["魔力","魔核","法环",...]
      * @return JSON 格式扫描结果: {"violations": [...], "total": N}
      */
-    public String scan(String text, String forbiddenTermsStr) {
+    @Tool("扫描章节正文中的禁止术语，返回违规列表和数量。用于类型守卫检查跨类型污染。")
+    public String scan(
+            @P("待扫描的章节正文内容") String text,
+            @P("禁止术语列表，JSON数组格式如[\"魔力\",\"魔核\"]或逗号分隔") String forbiddenTermsStr) {
         List<String> forbiddenTerms = parseTerms(forbiddenTermsStr);
         if (forbiddenTerms.isEmpty() || text == null || text.isEmpty()) {
             return "{\"violations\": [], \"total\": 0, \"passed\": true}";

@@ -4,7 +4,13 @@
       "WebSearch",
       "WebFetch(domain:help.aliyun.com)",
       "Read(//d/Virtual Machines/**)",
-      "Bash(mv \"Ubuntu 64 位\" \"Ubuntu\")"
+      "Bash(mv \"Ubuntu 64 位\" \"Ubuntu\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.sudowrite.com)",
+      "WebFetch(domain:novelcrafter.com)",
+      "Bash(npx vite *)",
+      "Bash(mvn compile *)",
+      "Bash(npm run *)"
     ]
   }
 }

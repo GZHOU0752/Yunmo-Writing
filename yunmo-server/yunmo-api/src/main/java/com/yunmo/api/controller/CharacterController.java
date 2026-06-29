@@ -1,7 +1,5 @@
 package com.yunmo.api.controller;
 
-import com.yunmo.common.dto.LLMConfig;
-import com.yunmo.common.dto.LLMMessage;
 import com.yunmo.domain.entity.Character;
 import com.yunmo.domain.entity.Chapter;
 import com.yunmo.domain.entity.CharacterState;
@@ -10,9 +8,15 @@ import com.yunmo.domain.repository.CharacterRepository;
 import com.yunmo.domain.repository.ChapterRepository;
 import com.yunmo.domain.repository.CharacterStateRepository;
 import com.yunmo.domain.repository.EmotionalDebtRepository;
-import com.yunmo.llm.provider.ProviderRegistry;
+import com.yunmo.llm.provider.ChatModelFactory;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -30,22 +34,23 @@ public class CharacterController {
     private final ChapterRepository chapterRepo;
     private final CharacterStateRepository characterStateRepo;
     private final EmotionalDebtRepository emotionalDebtRepo;
-    private final ProviderRegistry providerRegistry;
+    private final ChatModelFactory modelFactory;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     public CharacterController(CharacterRepository characterRepo,
                                ChapterRepository chapterRepo,
                                CharacterStateRepository characterStateRepo,
                                EmotionalDebtRepository emotionalDebtRepo,
-                               ProviderRegistry providerRegistry) {
+                               ChatModelFactory modelFactory) {
         this.characterRepo = characterRepo;
         this.chapterRepo = chapterRepo;
         this.characterStateRepo = characterStateRepo;
         this.emotionalDebtRepo = emotionalDebtRepo;
-        this.providerRegistry = providerRegistry;
+        this.modelFactory = modelFactory;
     }
 
     @GetMapping
+    @Cacheable(value = "characters", key = "#novelId")
     public Mono<List<Character>> list(@PathVariable String novelId) {
         return Mono.fromCallable(() ->
                 characterRepo.findByNovelIdOrderByImportanceDesc(novelId)
@@ -78,6 +83,7 @@ public class CharacterController {
     }
 
     @PatchMapping("/{id}")
+    @CacheEvict(value = "characters", key = "#novelId")
     public Mono<ResponseEntity<Character>> update(
             @PathVariable String novelId, @PathVariable String id, @RequestBody Map<String, Object> body) {
         return Mono.fromCallable(() ->
@@ -109,6 +115,7 @@ public class CharacterController {
     }
 
     @DeleteMapping("/{id}")
+    @CacheEvict(value = "characters", key = "#novelId")
     public Mono<ResponseEntity<Void>> delete(@PathVariable String novelId, @PathVariable String id) {
         return Mono.fromCallable(() -> {
             var c = characterRepo.findById(id);
@@ -132,8 +139,7 @@ public class CharacterController {
                 .filter(c -> c.getNovelId().equals(novelId))
                 .orElseThrow(() -> new IllegalArgumentException("角色不存在"));
 
-            var provider = providerRegistry.get("deepseek");
-            if (provider == null) throw new RuntimeException("LLM 服务不可用");
+            ChatLanguageModel model = modelFactory.getSyncModel("deepseek", "deepseek-v4-pro");
 
             // 收集该角色在所有章节中的出场上下文
             var chapters = chapterRepo.findByNovelIdOrderByChapterNumberAsc(novelId);
@@ -189,12 +195,9 @@ public class CharacterController {
                 character.getDescription() != null ? character.getDescription() : "无",
                 samples.toString());
 
-            var response = provider.generate(
-                List.of(LLMMessage.user(prompt)),
-                LLMConfig.precise("deepseek-v4-pro")
-            );
+            Response<AiMessage> response = model.generate(UserMessage.from(prompt));
 
-            String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content());
+            String json = com.yunmo.common.util.JsonExtractor.extractJson(response.content().text());
             if (json == null || json.isBlank()) json = "{}";
 
             @SuppressWarnings("unchecked")

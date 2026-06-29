@@ -3,7 +3,7 @@ package com.yunmo.agent.pipeline;
 import com.yunmo.agent.core.AgentFactory;
 import com.yunmo.agent.core.AgentSpec;
 import com.yunmo.common.enums.AgentType;
-import com.yunmo.llm.adapter.MultiProviderChatModel;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ public class PleasureBeatStage implements PipelinePlugin {
     public StageOutput execute(PipelineState state) {
         Map<AgentType, AgentSpec> specs = agentFactory.createAllSpecs(Map.of());
         AgentSpec spec = specs.get(AgentType.PLEASURE_BEAT);
-        MultiProviderChatModel model = agentFactory.createChatModel(spec);
+        ChatLanguageModel model = agentFactory.createChatModel(spec);
 
         String chapterPlan = state.get("chapter_plan", String.class);
         String contextText = state.get("context_text", String.class);

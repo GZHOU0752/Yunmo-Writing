@@ -137,6 +137,36 @@ public class ExportService {
         return text.trim();
     }
 
+    /** 导出 Markdown */
+    public String exportMarkdown(String novelId) {
+        Novel novel = novelRepo.findById(novelId).orElseThrow();
+        List<Chapter> chapters = chapterRepo.findByNovelIdOrderByChapterNumberAsc(novelId);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("# ").append(novel.getTitle()).append("\n\n");
+
+        for (var ch : chapters) {
+            sb.append("## 第").append(ch.getChapterNumber()).append("章");
+            if (ch.getTitle() != null && !ch.getTitle().isEmpty()) {
+                sb.append(" ").append(ch.getTitle());
+            }
+            sb.append("\n\n");
+            if (ch.getContent() != null) {
+                String plain = htmlToPlainText(ch.getContent());
+                String[] paragraphs = plain.split("\n\n+");
+                for (String p : paragraphs) {
+                    String trimmed = p.trim();
+                    if (!trimmed.isEmpty()) {
+                        sb.append(trimmed).append("\n\n");
+                    }
+                }
+            }
+        }
+
+        log.info("导出 Markdown: {} -> {} 章", novel.getTitle(), chapters.size());
+        return sb.toString();
+    }
+
     /** 解码 HTML 实体 */
     private String decodeEntities(String text) {
         if (text == null) return "";
