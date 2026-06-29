@@ -17,7 +17,7 @@ public class DailyWritingStats extends BaseEntity {
     @Column(name = "novel_id", nullable = false)
     private String novelId;
 
-    @Column(nullable = false)
+    @Column(name = "date", nullable = false)
     private LocalDate date;
 
     @Column(name = "word_count")

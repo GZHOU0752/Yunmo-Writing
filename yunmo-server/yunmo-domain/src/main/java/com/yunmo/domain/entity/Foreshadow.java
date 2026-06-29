@@ -51,5 +51,6 @@ public class Foreshadow extends BaseEntity {
     private Integer resolvedChapter;
 
     /** 紧急度 0-10，>=7 为必须回收 */
+    @Column(name = "urgency")
     private Integer urgency = 5;
 }

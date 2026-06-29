@@ -40,11 +40,11 @@ public class CharacterState extends BaseEntity {
     private String realm;
 
     /** 情绪状态 */
-    @Column(length = 200)
+    @Column(name = "emotional_state", length = 200)
     private String emotionalState;
 
     /** 身体状况 */
-    @Column(length = 200)
+    @Column(name = "physical_state", length = 200)
     private String physicalState;
 
     /** 关系变化（JSON文本：{targetName: "oldRel → newRel", ...}） */

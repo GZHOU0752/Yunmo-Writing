@@ -10,19 +10,19 @@ public class AgentModelConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "agent_type", nullable = false, unique = true)
     private String agentType;  // WRITER, ARCHITECT, INSPECTOR, etc.
 
-    @Column(nullable = false)
+    @Column(name = "provider", nullable = false)
     private String provider;   // deepseek, kimi, qwen
 
-    @Column(nullable = false)
+    @Column(name = "model", nullable = false)
     private String model;      // deepseek-v4-pro, kimi-k2-0719, qwen-plus, etc.
 
-    @Column(nullable = false)
+    @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
 
-    @Column(nullable = false)
+    @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
     private LocalDateTime createdAt;

@@ -31,13 +31,13 @@ public class ContextSnapshot extends BaseEntity {
     @Column(name = "layer3_history", columnDefinition = "LONGTEXT")
     private String layer3History;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "layer4_plan", columnDefinition = "TEXT")
     private String layer4Plan;
 
     @Column(name = "estimated_tokens")
     private Integer estimatedTokens;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "metadata", columnDefinition = "TEXT")
     @Convert(converter = JsonMapConverter.class)
     private Map<String, Object> metadata;
 }

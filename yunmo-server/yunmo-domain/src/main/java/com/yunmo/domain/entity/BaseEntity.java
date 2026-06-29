@@ -21,19 +21,20 @@ import java.util.UUID;
 public abstract class BaseEntity implements Serializable {
 
     @Id
-    @Column(length = 36, updatable = false, nullable = false)
+    @Column(name = "id", length = 36, updatable = false, nullable = false)
     private String id;
 
     @CreationTimestamp
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     /** 乐观锁版本号，每次更新自动递增 */
     @Version
-    @Column(nullable = false)
+    @Column(name = "version", nullable = false)
     private Long version = 0L;
 
     @PrePersist

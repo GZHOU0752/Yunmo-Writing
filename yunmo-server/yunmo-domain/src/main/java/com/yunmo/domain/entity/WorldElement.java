@@ -27,5 +27,6 @@ public class WorldElement extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "chapter_introduced")
     private Integer chapterIntroduced;
 }
